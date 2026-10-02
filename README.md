@@ -15,4 +15,4 @@ Repozytoria kodu i automatyzacja pracy z nim wykorzystują GitHub. Azure DevOps 
 | 27 listopada 2026 | lab7 | Kubernetes: Deployment, Service i podstawy pracy z kubectl |
 | 4 grudnia 2026 | lab8 | CD: publikacja obrazu i wdrożenie aplikacji |
 | 11 grudnia 2026 | lab9 | Monitoring: Application Insights, KQL i alerty |
-| 18 grudnia 2026 | lab10 | Konsultacje projektu i integracja materiału z zajęć |
+| 18 grudnia 2026 | lab10 | Konsultacje projektu |
