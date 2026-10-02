@@ -12,7 +12,7 @@ Repozytoria kodu i automatyzacja pracy z nim wykorzystują GitHub. Azure DevOps 
 | 23 października 2026 | lab4 | Docker Compose: usługi, sieci i wolumeny |
 | 6 listopada 2026 | lab5 | CI w GitHub Actions: testy i kontrola pull requestów |
 | 20 listopada 2026 | lab6 | Terraform / IaC |
-| 27 listopada 2026 | lab7 | Konsultacje projektu i integracja materiału z zajęć |
+| 27 listopada 2026 | lab7 | Monitoring: Application Insights, KQL i alerty |
 | 4 grudnia 2026 | lab8 | Kubernetes: Deployment, Service i podstawy pracy z kubectl |
 | 11 grudnia 2026 | lab9 | CD: publikacja obrazu i wdrożenie aplikacji |
-| 18 grudnia 2026 | lab10 | Monitoring: Application Insights, KQL i alerty |
+| 18 grudnia 2026 | lab10 | Konsultacje projektu i integracja materiału z zajęć |
