@@ -2,7 +2,7 @@
 
 ## Cel
 
-Przećwiczyć podstawowe polecenia terminala Linux/macOS oraz typowy przepływ pracy z Git i GitHub: sklonować repozytorium kursowe, utworzyć własną gałąź, zapisać commit, wypchnąć go na GitHub i zgłosić pracę do oceny przez Pull Request.
+Przećwiczyć podstawowe polecenia terminala Linux/macOS oraz typowy przepływ pracy z Git i GitHub: sklonować repozytorium kursowe, utworzyć własną gałąź, zapisać commit, wypchnąć go na GitHub i zgłosić pracę do oceny przez Pull Request. Sprawdzić, czy usunięcie pliku usuwa jego zawartość z historii repozytorium.
 
 ## Ważne informacje
 
@@ -13,7 +13,7 @@ Przećwiczyć podstawowe polecenia terminala Linux/macOS oraz typowy przepływ p
 
 ## 1. Sklonuj repozytorium kursowe
 
-Otwórz terminal Linux lub macOS. Sklonuj repozytorium przeznaczone dla studiów stacjonarnych i przejdź do jego katalogu:
+Otwórz terminal Linux, WSL lub macOS. Sklonuj repozytorium przeznaczone dla studiów stacjonarnych i przejdź do jego katalogu:
 
 ```bash
 git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git
@@ -128,6 +128,72 @@ Jeżeli GitHub odrzuca push z powodu braku uprawnień, poproś prowadzącego o d
 
 Przekaż prowadzącemu URL utworzonego Pull Requesta w miejscu wskazanym na zajęciach.
 
-## Artefakt do oddania
+## 7. Plik zniknął, ale hasło zostało (10–15 minut)
+
+Pracuj samodzielnie, w katalogu głównym repozytorium, na swojej gałęzi `lab2/twoj-login`. Zastąp `twoj-login` swoim loginem GitHub we wszystkich poleceniach. Przed rozpoczęciem sprawdź `git status --short` — wcześniejsze zmiany powinny być już zapisane w commicie.
+
+**Zanim zaczniesz, przewidź wynik:** czy po usunięciu pliku, zapisaniu usunięcia w commicie i wykonaniu push będzie można jeszcze odczytać zapisane w nim hasło?
+
+### 7.1 Dodaj fikcyjne hasło
+
+Użyj wyłącznie poniższej fikcyjnej wartości. Nie wpisuj prawdziwego hasła ani tokenu.
+
+```bash
+printf 'password=TO-NIE-JEST-PRAWDZIWE-HASLO-LAB2\n' > lab2/submissions/twoj-login-config-demo.txt
+git add lab2/submissions/twoj-login-config-demo.txt
+git diff --cached --stat
+git commit -m "Add fake password for Lab 2 experiment"
+demo_commit=$(git rev-parse HEAD)
+echo "$demo_commit"
+git push
+```
+
+Zapisz wyświetlony identyfikator commita. Na GitHubie wybierz swoją gałąź i sprawdź zawartość pliku `lab2/submissions/twoj-login-config-demo.txt`.
+
+### 7.2 Usuń plik
+
+```bash
+git rm lab2/submissions/twoj-login-config-demo.txt
+git commit -m "Delete fake password file"
+git push
+git status --short
+```
+
+Odśwież widok swojej gałęzi na GitHubie. Sprawdź, czy plik zniknął z aktualnej wersji repozytorium.
+
+### 7.3 Odnajdź usunięte hasło
+
+Spróbuj odczytać fikcyjne hasło z wcześniejszego commita, korzystając z GitHub lub terminala. Porównaj wynik ze swoim przewidywaniem.
+
+<details>
+<summary>Podpowiedź — otwórz dopiero po własnej próbie</summary>
+
+Na GitHubie otwórz historię commitów swojej gałęzi, znajdź commit dodający fikcyjne hasło i otwórz jego zmianę. Możesz również użyć zapisanej zmiennej w tej samej sesji terminala:
+
+```bash
+git show "${demo_commit}:lab2/submissions/twoj-login-config-demo.txt"
+```
+
+Jeśli terminal został zamknięty, zastąp `${demo_commit}` zapisanym identyfikatorem commita.
+
+</details>
+
+Prześlij prowadzącemu krótkie wnioski przez **Teams lub e-mail**. Podaj URL swojego PR i identyfikator commita zawierającego fikcyjne hasło oraz odpowiedz:
+
+- Co przewidywałeś i jaki był faktyczny wynik?
+- Dlaczego usunięcie pliku nie wystarczyło do usunięcia hasła?
+- Co należy zrobić, gdy opublikowane hasło lub token są prawdziwe?
+
+<details>
+<summary>Wniosek — przeczytaj po wykonaniu ćwiczenia</summary>
+
+Usunięcie pliku w nowym commicie nie usuwa jego wcześniejszych wersji. Jeśli prawdziwe hasło lub token trafią na GitHub, należy traktować je jako ujawnione: zmienić hasło albo unieważnić i zastąpić token. Czyszczenie historii wymaga dodatkowych działań i nie usuwa automatycznie kopii w cudzych klonach lub forkach. Więcej: [dokumentacja GitHub](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
+
+</details>
+
+Pozostaw istniejący PR otwarty do oceny. Po wykonaniu ćwiczenia jego końcowy widok **Files changed** powinien nadal zawierać tylko Twój plik Markdown; plik demonstracyjny pozostaje w historii commitów.
+
+## Artefakty do oddania
 
 - URL Pull Requesta skierowanego do `main` repozytorium kursowego.
+- Krótkie wnioski z ćwiczenia 7 przesłane przez Teams lub e-mail.
