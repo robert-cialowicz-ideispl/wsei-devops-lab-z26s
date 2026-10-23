@@ -191,7 +191,7 @@ Poczekaj na dostępność API i odśwież stronę. Produktu `Bez wolumenu` nie p
 
 Dodaj produkt **`Z wolumenem`**. **Nie zatrzymuj teraz aplikacji tylko po to, aby wykonać dodatkowy test.** W ćwiczeniu 4 i tak odtworzymy kontenery po zmianie konfiguracji; wtedy sprawdzisz, czy produkt pozostał.
 
-Zwykłe `down` pozostawia nazwany wolumen. Opcja **`down -v` usunęłaby także wolumen i dane tego projektu** — nie wykonuj jej podczas ćwiczeń. Więcej: [dokumentacja `docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/).
+Zwykłe `down` pozostawia nazwany wolumen. Opcja **`down -v` usunęłaby także wolumen i dane tego projektu** — nie wykonuj jej podczas ćwiczeń.
 
 ## 4. Poczekaj na gotowość bazy
 
@@ -232,8 +232,6 @@ docker compose logs --tail 30 db backend
 ```
 
 Oczekiwany rezultat: baza osiąga stan `healthy`, po czym Compose uruchamia backend. **Sprawdź teraz produkt `Z wolumenem` z ćwiczenia 3 — powinien pozostać w bazie mimo usunięcia i odtworzenia kontenera.** Pozostaw go w bazie do końcowego zrzutu strony.
-
-Więcej: [gotowość i kolejność uruchamiania w Compose](https://docs.docker.com/compose/how-tos/startup-order/).
 
 ## 5. Podziel sieć i sprawdź izolację
 
@@ -316,7 +314,7 @@ docker compose up -d
 docker compose watch </dev/null > /tmp/lab4-watch.log 2>&1 &
 ```
 
-Ostatnie polecenie uruchamia Watch **w tle**, więc możesz dalej pracować w tym samym terminalu Guacamole. Znak `&` oddaje terminal do dyspozycji, `</dev/null` odłącza wejście Watch od klawiatury, a `> /tmp/lab4-watch.log 2>&1` zapisuje komunikaty i błędy do pliku. Pozostań w tej sesji terminala do końca ćwiczenia i uruchom Watch tylko raz.
+Ostatnie polecenie uruchamia Watch **w tle**.
 
 Sprawdź zadanie w tle i jego komunikaty:
 
@@ -347,17 +345,7 @@ Sprawdź:
 - Czy produkty dodane w ćwiczeniach 3–5 nadal istnieją?
 - Czy zmiana frontendu wymagała odtworzenia bazy?
 
-Po sprawdzeniu zmiany strony i komunikatów synchronizacji przywróć Watch na pierwszy plan:
-
-```bash
-fg
-```
-
-Następnie naciśnij **`Ctrl+C`**. To kończy obserwowanie; usługi uruchomione wcześniej przez `up -d` pozostają uruchomione. Jeśli masz inne zadania w tle, najpierw sprawdź ich numery przez `jobs` i przywróć właściwe, np. `fg %1` dla zadania numer 1.
-
 `sync` kopiuje plik do działającego kontenera. Nginx odczytuje HTML przy kolejnym żądaniu, dlatego wystarcza odświeżenie strony. Samo kopiowanie źródła C# nie przebudowałoby skompilowanego backendu. Zmiany synchronizowane przez Watch nie zmieniają również wcześniej zbudowanego obrazu; przy kolejnym odtworzeniu frontendu zaktualizuj obraz przez `docker compose build frontend` lub ponownie uruchom Watch.
-
-Więcej: [Compose Watch i wymagania wersji](https://docs.docker.com/compose/how-tos/file-watch/).
 
 ## Artefakty do oddania
 
