@@ -20,9 +20,8 @@ Przewidywania wpisz przed testem. W ostatnim wierszu podaj tylko przewidywanie; 
 
 | Konfiguracja | Operacja | Przewidywany wynik | Zaobserwowany wynik |
 |---|---|---|---|
-| Bez nazwanego wolumenu | `stop` → `start` | | |
-| Bez nazwanego wolumenu | `down` → `up -d` | | |
-| Z nazwanym wolumenem | `down` → `up -d` | | |
+| Stara baza bez wolumenu → nowa baza z wolumenem | `down`, dodanie wolumenu, `up -d` (ćw. 3) | | Czy produkt `Bez wolumenu` istnieje? |
+| Z nazwanym wolumenem | `down` → `up -d` przy dodawaniu healthchecka (ćw. 4) | | Czy produkt `Z wolumenem` pozostał? |
 | Z nazwanym wolumenem | `down -v` → `up -d` | | Nie wykonywano / zadanie dodatkowe |
 
 Podaj nazwę produktu kontrolnego i dołącz dowód jego obecności po `down/up` z wolumenem.

@@ -48,9 +48,8 @@ Obie konfiguracje używają projektu `lab4` oraz tych samych tagów obrazów. Ni
 
 | Próba | Oczekiwany wynik |
 |---|---|
-| `stop/start` bez nazwanego wolumenu | Dane pozostają, bo kontener nie został usunięty. |
-| `down/up` bez trwałego montowania | Nowa baza bez wcześniejszych produktów. |
-| `down/up` z `db-data` | Produkty pozostają. |
+| Ćw. 3: usunięcie starej bazy bez wolumenu i uruchomienie z nowym `db-data` | Produkt `Bez wolumenu` nie występuje w nowej bazie. |
+| Ćw. 4: `down/up` z `db-data`, przy dodawaniu healthchecka | Produkt `Z wolumenem` pozostaje. |
 | `down -v/up` z `db-data` | Dane usunięte; w części obowiązkowej student wyłącznie przewiduje wynik. |
 | SQL `SELECT 1` w healthchecku | `healthy`; backend startuje po pozytywnym sprawdzeniu bazy. |
 | TCP do `db:1433` z `backend-network` | Powodzenie. |
@@ -58,6 +57,8 @@ Obie konfiguracje używają projektu `lab4` oraz tych samych tagów obrazów. Ni
 | Watch po zmianie HTML | Nowy nagłówek po odświeżeniu, produkty bez zmian. |
 
 Brak błędu startowego backendu w konkretnej próbie jest dopuszczalny: wyścig zależy od czasu startu SQL Server. Oceniaj poprawność konfiguracji i rozumienie różnicy między uruchomieniem procesu a gotowością bazy.
+
+Ćwiczenie 3 nie wymaga już osobnego `stop/start` ani wielokrotnego uruchamiania bazy bez wolumenu. Po jednym `down` student dodaje wolumen i uruchamia aplikację. Test zachowania danych wykonuje przy okazji odtworzenia usług w ćwiczeniu 4. Plik [compose.healthcheck.yml](../sample-app/compose.healthcheck.yml) zawiera kompletny stan po ćwiczeniu 4, do porównania przy błędach wcięć i wklejania YAML.
 
 ## Kryteria zaliczenia
 

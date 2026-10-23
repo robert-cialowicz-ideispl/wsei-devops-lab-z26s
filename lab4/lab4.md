@@ -22,6 +22,8 @@ Przy pracy na własnym komputerze z Dockerem używaj `http://localhost:8080/`. A
 
 ## 0. Przygotuj własny katalog pracy
 
+**Cel:** przygotujesz własną kopię aplikacji i obrazy potrzebne w kolejnych ćwiczeniach. Swoje zmiany zapiszesz w osobnym katalogu oddania.
+
 ```bash
 git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git ~/wsei-devops-lab-z26s-lab4
 cd ~/wsei-devops-lab-z26s-lab4
@@ -62,7 +64,6 @@ Zweryfikuj plik i przygotuj obrazy:
 
 ```bash
 docker compose config --quiet
-docker compose pull db
 docker compose build
 docker pull python:3.12-alpine
 ```
@@ -75,7 +76,7 @@ Hasło `Lab4Compose!2026` jest wspólną, demonstracyjną wartością do tej baz
 
 ## 1. Uruchom aplikację ręcznie
 
-**Cel:** zobacz, co Compose za chwilę zrobi za Ciebie. Obrazy są już zbudowane — nie powtarzamy ćwiczenia z Dockerfile z lab3.
+**Cel:** uruchomisz cztery współpracujące kontenery i zobaczysz, ile poleceń oraz parametrów trzeba do tego przygotować ręcznie. Za chwilę tę samą pracę przejmie Compose. Korzystamy z już zbudowanych obrazów.
 
 ### 1.1 Utwórz sieć i uruchom bazę
 
@@ -127,6 +128,8 @@ Obrazy zachowaj — wykorzysta je Compose. Produkt z ręcznie uruchomionej bazy 
 
 ## 2. Uruchom aplikację przez Compose i zmień port
 
+**Cel:** uruchomisz całą aplikację na podstawie jednego pliku Compose. Zmieniając port gateway, sprawdzisz różnicę między portem maszyny a portem wewnątrz kontenera.
+
 ### 2.1 Odczytaj konfigurację i uruchom projekt
 
 ```bash
@@ -165,31 +168,25 @@ Brama uczelniana nadal kieruje `/site/N/` na port **8080**, więc podczas tego e
 
 ## 3. Sprawdź trwałość danych i dodaj wolumen
 
-**Przed każdym testem przewidź wynik.** Obserwacje zapisuj w tabeli w sprawozdaniu. Po uruchomieniu usług poczekaj na dostępność API i odśwież stronę.
+**Cel:** zabezpieczysz dane bazy przed utratą przy usuwaniu i odtwarzaniu kontenera. Nazwany wolumen przechowuje pliki bazy niezależnie od kontenera, dzięki czemu nowy kontener może ponownie z nich skorzystać.
 
-### 3.1 Zatrzymanie istniejących kontenerów
+Wykonamy jedno usunięcie starej bazy i jedno uruchomienie z wolumenem. Zachowanie danych po kolejnym odtworzeniu sprawdzisz przy okazji ćwiczenia 4.
 
-Dodaj produkt `Przed stop`, a następnie wykonaj:
+### 3.1 Usuń kontener bazy bez wolumenu
 
-```bash
-docker compose stop
-docker compose start
-```
-
-Sprawdź, czy produkt nadal istnieje. `stop/start` wykorzystuje te same kontenery i zachowuje ich warstwę zapisywalną. Przy `start` ponownie może wystąpić oczekiwanie backendu na bazę.
-
-### 3.2 Usunięcie i odtworzenie kontenerów
+W działającej aplikacji dodaj produkt **`Bez wolumenu`**. Następnie:
 
 ```bash
 docker compose down
-docker compose up -d
 ```
 
-Sprawdź produkty ponownie. Bez trwałego montowania danych nowy kontener bazy nie odzyskuje produktów z usuniętego kontenera. To jest **odtworzenie kontenera**, a nie zwykły restart tego samego procesu.
+Kontener bazy został usunięty. Nie uruchamiaj go jeszcze — od razu dodamy trwałe miejsce na dane. Produkt `Bez wolumenu` nie zostanie odzyskany przez nową bazę.
 
-### 3.3 Dodaj nazwany wolumen
+Samo zatrzymanie lub restart tego samego kontenera nie usuwa jego danych. Tutaj wykonaliśmy `down`, które usuwa kontenery projektu.
 
-Zatrzymaj projekt przez `docker compose down`. W swoim `docker-compose.yml` dopisz do **istniejącej usługi `db`**:
+### 3.2 Dodaj wolumen i uruchom aplikację
+
+W swoim `docker-compose.yml` dopisz do **istniejącej usługi `db`**:
 
 ```yaml
     volumes:
@@ -211,31 +208,32 @@ docker compose up -d
 docker volume inspect lab4_db-data
 ```
 
-Dodaj produkt **`Z wolumenem`**, a następnie powtórz:
+Poczekaj na dostępność API i odśwież stronę. Produktu `Bez wolumenu` nie powinno być — nowy wolumen nie odzyskuje danych starego kontenera.
 
-```bash
-docker compose down
-docker compose up -d
-```
-
-Produkt powinien nadal istnieć. Zapisz dowód w sprawozdaniu. Dodanie wolumenu nie odzyskuje danych utraconych w kroku 3.2.
+Dodaj produkt **`Z wolumenem`** i zapisz obserwację w sprawozdaniu. **Nie zatrzymuj teraz aplikacji tylko po to, aby wykonać dodatkowy test.** W ćwiczeniu 4 i tak odtworzymy kontenery po zmianie konfiguracji; wtedy sprawdzisz, czy produkt pozostał.
 
 Zwykłe `down` pozostawia nazwany wolumen. Opcja **`down -v` usunęłaby także wolumen i dane tego projektu** — na tym etapie jej nie wykonuj. Wyjaśnij przewidywany wynik w tabeli. Więcej: [dokumentacja `docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/).
 
 ## 4. Poczekaj na gotowość bazy
 
-Zatrzymaj projekt przez `docker compose down`, zachowując wolumen. Do usługi `db` dodaj:
+**Cel:** backend powinien startować wtedy, gdy baza przyjmuje zapytania. Samo uruchomienie kontenera SQL Server jeszcze tego nie oznacza. Healthcheck sprawdzi gotowość bazy, a Compose poczeka na jego pozytywny wynik.
+
+Zatrzymaj projekt przez `docker compose down`, zachowując wolumen. Do **istniejącej usługi `db`**, na tym samym poziomie co `image`, `environment` i `volumes`, dodaj:
 
 ```yaml
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Lab4Compose!2026", "-C", "-Q", "SELECT 1", "-b"]
+      test:
+        - CMD-SHELL
+        - >-
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+          -P 'Lab4Compose!2026' -C -Q 'SELECT 1' -b
       interval: 10s
       timeout: 5s
       retries: 12
       start_period: 30s
 ```
 
-`sqlcmd` wykonuje rzeczywiste zapytanie. `-b` ustawia niezerowy kod zakończenia przy błędzie SQL, a `-C` pozwala użyć certyfikatu demonstracyjnej bazy.
+`sqlcmd` wykonuje rzeczywiste zapytanie. `-b` ustawia niezerowy kod zakończenia przy błędzie SQL, a `-C` pozwala użyć certyfikatu demonstracyjnej bazy. Zapis `>-` składa dwie linie polecenia w jedną komendę powłoki.
 
 W usłudze `backend` **zastąp dotychczasowe `depends_on`**:
 
@@ -245,6 +243,10 @@ W usłudze `backend` **zastąp dotychczasowe `depends_on`**:
         condition: service_healthy
 ```
 
+**Układ YAML ma znaczenie:** `db:` i `backend:` muszą pozostać osobnymi usługami, z takim samym wcięciem pod `services:`. Pola `test`, `interval`, `timeout`, `retries` i `start_period` wpisuj w osobnych liniach wewnątrz `healthcheck`. Nie dopisuj `test:` w tej samej linii co `healthcheck:` ani `backend:` na końcu linii z parametrami testu.
+
+Kompletną poprawną konfigurację na tym etapie znajdziesz w [compose.healthcheck.yml](sample-app/compose.healthcheck.yml). Porównaj z nią swój plik, jeśli walidacja zgłasza błąd. Zachowaj `name: lab4` na początku pliku — kolejne ćwiczenie korzysta z tego prefiksu nazw sieci.
+
 ```bash
 docker compose config --quiet
 docker compose up -d
@@ -252,13 +254,15 @@ docker compose ps
 docker compose logs --tail 30 db backend
 ```
 
-Oczekiwany rezultat: baza osiąga stan `healthy`, po czym Compose uruchamia backend. Dodany wcześniej produkt powinien pozostać w bazie. Zapisz wynik `docker compose ps`.
+Oczekiwany rezultat: baza osiąga stan `healthy`, po czym Compose uruchamia backend. **Sprawdź teraz produkt `Z wolumenem` z ćwiczenia 3 — powinien pozostać w bazie mimo usunięcia i odtworzenia kontenera.** Zapisz wynik w tabeli trwałości danych oraz zachowaj `docker compose ps` i zrzut strony z produktem.
 
 **Odpowiedz:** czym różnią się stan `running`, pozytywny healthcheck bazy i `restart: unless-stopped`? Healthcheck sam nie restartuje kontenera, który jest `unhealthy`. Endpoint aplikacji `/health` potwierdza działanie procesu API; nie zastępuje zapytania do bazy.
 
 Więcej: [gotowość i kolejność uruchamiania w Compose](https://docs.docker.com/compose/how-tos/startup-order/).
 
 ## 5. Podziel sieć i sprawdź izolację
+
+**Cel:** ograniczysz dostęp do bazy do usług, które go potrzebują. Backend będzie łączył obie sieci, a frontend i gateway nie uzyskają bezpośredniego dostępu do SQL Server. Sprawdzisz to dwoma testami połączenia.
 
 Zatrzymaj projekt przez `docker compose down`. Dopisz na poziomie głównym pliku:
 
@@ -319,6 +323,8 @@ Otwórz aplikację i dodaj kolejny produkt. Backend ma dostęp do obu sieci, dla
 
 ## 6. Aktualizuj frontend przez Compose Watch
 
+**Cel:** zmienisz stronę w działającym kontenerze bez ręcznego budowania nowego obrazu. Watch będzie kopiował zapisane zmiany HTML, podczas gdy backend i baza będą nadal pracować.
+
 W usłudze `frontend`, obok `build` i `networks`, dodaj:
 
 ```yaml
@@ -359,6 +365,8 @@ Zapisz zrzut strony i zdarzenie synchronizacji. `Ctrl+C` w terminalu z `docker c
 Więcej: [Compose Watch i wymagania wersji](https://docs.docker.com/compose/how-tos/file-watch/).
 
 ## 7. Sprawdź wynik i oddaj pracę
+
+**Cel:** potwierdzisz, że kompletna aplikacja daje się ponownie uruchomić, a dane bazy pozostają zachowane. Zapiszesz konfigurację i wyniki swojej pracy w sprawozdaniu oraz Pull Requeście.
 
 Zakończ Watch przez `Ctrl+C`. Zweryfikuj kompletny projekt, odtwarzając go z aktualnego kodu i zachowując wolumen:
 
@@ -417,4 +425,4 @@ Po zebraniu dowodów możesz zatrzymać projekt przez `docker compose down`, bę
 | Baza ma status `unhealthy` | `docker compose logs --tail 50 db`; sprawdź pamięć, hasło, ścieżkę `sqlcmd` i parametr `-C`. |
 | Nginx zgłasza brak hosta upstream | Sprawdź przypisanie usług do sieci; po poprawieniu wykonaj `docker compose down` i `docker compose up -d`, bez `-v`. |
 | Watch nie widzi zmian | Sprawdź wersję Compose, działającą sesję Watch i edycję pliku w tej samej kopii projektu na Ubuntu. |
-| YAML nie przechodzi walidacji | Sprawdź wcięcia i powtórzone klucze. `volumes` i `networks` występują zarówno przy usłudze, jak i jako deklaracje na poziomie głównym. |
+| YAML nie przechodzi walidacji | Sprawdź podział na linie, wcięcia i powtórzone klucze. Po ćwiczeniu 4 porównaj plik z [compose.healthcheck.yml](sample-app/compose.healthcheck.yml). `db` i `backend` są osobnymi usługami; parametry healthchecka należą do `db.healthcheck`. |
