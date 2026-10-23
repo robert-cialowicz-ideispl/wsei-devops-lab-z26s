@@ -22,7 +22,7 @@ Przy pracy na własnym komputerze z Dockerem używaj `http://localhost:8080/`. A
 
 ## 0. Przygotuj własny katalog pracy
 
-**Cel:** przygotujesz własną kopię aplikacji i obrazy potrzebne w kolejnych ćwiczeniach. Swoje zmiany zapiszesz w osobnym katalogu oddania.
+**Cel:** przygotujesz własną kopię aplikacji i obrazy potrzebne w kolejnych ćwiczeniach. Swoje zmiany zapiszesz w osobnym katalogu pracy.
 
 ```bash
 git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git ~/wsei-devops-lab-z26s-lab4
@@ -33,14 +33,12 @@ git status --short
 Zastąp **`twoj-login` swoim loginem GitHub** we wszystkich dalszych poleceniach:
 
 ```bash
-git switch -c lab4/twoj-login
 mkdir -p lab4/submissions/twoj-login
 cp -R lab4/sample-app lab4/submissions/twoj-login/
-cp lab4/report-template.md lab4/submissions/twoj-login/README.md
 cd lab4/submissions/twoj-login/sample-app
 ```
 
-Edytuj wyłącznie swoją kopię w `lab4/submissions/twoj-login/`. Wszystkie dalsze polecenia Docker wykonuj w jej katalogu `sample-app`, chyba że instrukcja mówi inaczej. Sprawozdanie jest o katalog wyżej: `../README.md`.
+Edytuj wyłącznie swoją kopię w `lab4/submissions/twoj-login/`. Wszystkie dalsze polecenia Docker wykonuj w jej katalogu `sample-app`, chyba że instrukcja mówi inaczej.
 
 ```text
 sample-app/
@@ -114,7 +112,7 @@ curl -fsS http://localhost:8080/api/products
 
 Jeśli API jeszcze startuje, sprawdź `docker logs lab4-manual-backend` i ponów żądanie po chwili. Otwórz `https://20.166.92.179/site/N/` i dodaj produkt `Test ręczny`.
 
-**Zapisz w sprawozdaniu:** jakie nazwy i parametry trzeba było powtórzyć, aby połączyć cztery usługi?
+Zwróć uwagę, jakie nazwy i parametry trzeba było powtórzyć, aby połączyć cztery usługi.
 
 ### 1.3 Zwolnij port i usuń wyłącznie zasoby tego ćwiczenia
 
@@ -126,11 +124,11 @@ docker network rm lab4-manual
 
 Obrazy zachowaj — wykorzysta je Compose. Produkt z ręcznie uruchomionej bazy nie jest przenoszony do nowego zestawu kontenerów.
 
-## 2. Uruchom aplikację przez Compose i zmień port
+## 2. Uruchom aplikację przez Compose
 
-**Cel:** uruchomisz całą aplikację na podstawie jednego pliku Compose. Zmieniając port gateway, sprawdzisz różnicę między portem maszyny a portem wewnątrz kontenera.
+**Cel:** uruchomisz całą aplikację na podstawie jednego pliku Compose oraz sprawdzisz stan usług i ich logi. Porównasz to z ręcznym uruchamianiem kontenerów z ćwiczenia 1.
 
-### 2.1 Odczytaj konfigurację i uruchom projekt
+Mapowanie `8080:80` udostępnia port `80` kontenera gateway na porcie `8080` maszyny Ubuntu, do którego kieruje brama WWW. Pozostaw to mapowanie przez całe laboratorium.
 
 ```bash
 cat docker-compose.yml
@@ -149,28 +147,9 @@ curl -fsS http://localhost:8080/api/products
 
 Oczekiwany wynik dla nowej bazy to `[]`. Otwórz stronę i dodaj produkt `Compose start`.
 
-### 2.2 Zmień port hosta
-
-Otwórz plik w edytorze, np. `nano docker-compose.yml`. W usłudze `gateway` zmień **`"8080:80"` na `"8081:80"`**:
-
-```bash
-docker compose config --quiet
-docker compose up -d
-docker compose port gateway 80
-curl -fsS http://localhost:8081/api/products
-```
-
-Brama uczelniana nadal kieruje `/site/N/` na port **8080**, więc podczas tego eksperymentu strona przez bramę będzie niedostępna. Test wykonujemy z terminala Ubuntu przez `curl`. Przy pracy lokalnej możesz otworzyć `http://localhost:8081/`.
-
-**Przywróć `"8080:80"`**, wykonaj `docker compose up -d` i sprawdź stronę przez bramę. Port wewnątrz gateway cały czas wynosi `80`.
-
-**Odpowiedz:** dlaczego zmiana mapowania gateway nie wymaga zmiany adresu `db` w backendzie?
-
 ## 3. Sprawdź trwałość danych i dodaj wolumen
 
 **Cel:** zabezpieczysz dane bazy przed utratą przy usuwaniu i odtwarzaniu kontenera. Nazwany wolumen przechowuje pliki bazy niezależnie od kontenera, dzięki czemu nowy kontener może ponownie z nich skorzystać.
-
-Wykonamy jedno usunięcie starej bazy i jedno uruchomienie z wolumenem. Zachowanie danych po kolejnym odtworzeniu sprawdzisz przy okazji ćwiczenia 4.
 
 ### 3.1 Usuń kontener bazy bez wolumenu
 
@@ -210,9 +189,9 @@ docker volume inspect lab4_db-data
 
 Poczekaj na dostępność API i odśwież stronę. Produktu `Bez wolumenu` nie powinno być — nowy wolumen nie odzyskuje danych starego kontenera.
 
-Dodaj produkt **`Z wolumenem`** i zapisz obserwację w sprawozdaniu. **Nie zatrzymuj teraz aplikacji tylko po to, aby wykonać dodatkowy test.** W ćwiczeniu 4 i tak odtworzymy kontenery po zmianie konfiguracji; wtedy sprawdzisz, czy produkt pozostał.
+Dodaj produkt **`Z wolumenem`**. **Nie zatrzymuj teraz aplikacji tylko po to, aby wykonać dodatkowy test.** W ćwiczeniu 4 i tak odtworzymy kontenery po zmianie konfiguracji; wtedy sprawdzisz, czy produkt pozostał.
 
-Zwykłe `down` pozostawia nazwany wolumen. Opcja **`down -v` usunęłaby także wolumen i dane tego projektu** — na tym etapie jej nie wykonuj. Wyjaśnij przewidywany wynik w tabeli. Więcej: [dokumentacja `docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/).
+Zwykłe `down` pozostawia nazwany wolumen. Opcja **`down -v` usunęłaby także wolumen i dane tego projektu** — nie wykonuj jej podczas ćwiczeń. Więcej: [dokumentacja `docker compose down`](https://docs.docker.com/reference/cli/docker/compose/down/).
 
 ## 4. Poczekaj na gotowość bazy
 
@@ -243,8 +222,6 @@ W usłudze `backend` **zastąp dotychczasowe `depends_on`**:
         condition: service_healthy
 ```
 
-**Układ YAML ma znaczenie:** `db:` i `backend:` muszą pozostać osobnymi usługami, z takim samym wcięciem pod `services:`. Pola `test`, `interval`, `timeout`, `retries` i `start_period` wpisuj w osobnych liniach wewnątrz `healthcheck`. Nie dopisuj `test:` w tej samej linii co `healthcheck:` ani `backend:` na końcu linii z parametrami testu.
-
 Kompletną poprawną konfigurację na tym etapie znajdziesz w [compose.healthcheck.yml](sample-app/compose.healthcheck.yml). Porównaj z nią swój plik, jeśli walidacja zgłasza błąd. Zachowaj `name: lab4` na początku pliku — kolejne ćwiczenie korzysta z tego prefiksu nazw sieci.
 
 ```bash
@@ -254,9 +231,7 @@ docker compose ps
 docker compose logs --tail 30 db backend
 ```
 
-Oczekiwany rezultat: baza osiąga stan `healthy`, po czym Compose uruchamia backend. **Sprawdź teraz produkt `Z wolumenem` z ćwiczenia 3 — powinien pozostać w bazie mimo usunięcia i odtworzenia kontenera.** Zapisz wynik w tabeli trwałości danych oraz zachowaj `docker compose ps` i zrzut strony z produktem.
-
-**Odpowiedz:** czym różnią się stan `running`, pozytywny healthcheck bazy i `restart: unless-stopped`? Healthcheck sam nie restartuje kontenera, który jest `unhealthy`. Endpoint aplikacji `/health` potwierdza działanie procesu API; nie zastępuje zapytania do bazy.
+Oczekiwany rezultat: baza osiąga stan `healthy`, po czym Compose uruchamia backend. **Sprawdź teraz produkt `Z wolumenem` z ćwiczenia 3 — powinien pozostać w bazie mimo usunięcia i odtworzenia kontenera.** Pozostaw go w bazie do końcowego zrzutu strony.
 
 Więcej: [gotowość i kolejność uruchamiania w Compose](https://docs.docker.com/compose/how-tos/startup-order/).
 
@@ -319,8 +294,6 @@ Oczekiwany jest **błąd wyszukania nazwy lub połączenia i niezerowy kod zako�
 
 Otwórz aplikację i dodaj kolejny produkt. Backend ma dostęp do obu sieci, dlatego aplikacja nadal działa.
 
-**Odpowiedz:** dlaczego używamy nazwy `db`, a nie zapamiętanego IP kontenera? Dlaczego frontend i gateway nie potrzebują sieci bazy? Więcej: [sieci w Compose](https://docs.docker.com/compose/how-tos/networking/).
-
 ## 6. Aktualizuj frontend przez Compose Watch
 
 **Cel:** zmienisz stronę w działającym kontenerze bez ręcznego budowania nowego obrazu. Watch będzie kopiował zapisane zmiany HTML, podczas gdy backend i baza będą nadal pracować.
@@ -340,17 +313,33 @@ W usłudze `frontend`, obok `build` i `networks`, dodaj:
 ```bash
 docker compose config --quiet
 docker compose up -d
-docker compose watch
+docker compose watch </dev/null > /tmp/lab4-watch.log 2>&1 &
 ```
 
-Ostatnie polecenie działa na pierwszym planie i pokazuje zdarzenia synchronizacji. Otwórz **drugi terminal na tej samej maszynie Ubuntu**, np. drugie połączenie Guacamole, i przejdź do swojej kopii projektu:
+Ostatnie polecenie uruchamia Watch **w tle**, więc możesz dalej pracować w tym samym terminalu Guacamole. Znak `&` oddaje terminal do dyspozycji, `</dev/null` odłącza wejście Watch od klawiatury, a `> /tmp/lab4-watch.log 2>&1` zapisuje komunikaty i błędy do pliku. Pozostań w tej sesji terminala do końca ćwiczenia i uruchom Watch tylko raz.
+
+Sprawdź zadanie w tle i jego komunikaty:
 
 ```bash
-cd ~/wsei-devops-lab-z26s-lab4/lab4/submissions/twoj-login/sample-app
+jobs
+tail -n 20 /tmp/lab4-watch.log
+```
+
+Poczekaj na komunikat o włączeniu obserwowania, np. `Watch enabled`. Jeśli go jeszcze nie ma, po chwili ponów `tail`. Jeśli zadanie zakończyło się, sprawdź błąd w tym samym pliku.
+
+W **tym samym terminalu**, nadal w swojej kopii `sample-app`, otwórz plik:
+
+```bash
 nano frontend/index.html
 ```
 
-Zmień widoczny nagłówek `Lista produktów — lab4` na **`Lista produktów — Imię Nazwisko — Watch`**. Zapisz plik, sprawdź zdarzenie w pierwszym terminalu i odśwież stronę. Używaj wyłącznie fikcyjnych nazw produktów.
+Zmień widoczny nagłówek `Lista produktów — lab4` na **`Lista produktów — Imię Nazwisko — Watch`**. Zapisz plik i wyjdź z edytora. Sprawdź synchronizację, a następnie odśwież stronę:
+
+```bash
+tail -n 20 /tmp/lab4-watch.log
+```
+
+Używaj wyłącznie fikcyjnych nazw produktów. `tail` bez opcji `-f` wyświetla ostatnie wpisy i od razu oddaje terminal.
 
 Sprawdź:
 
@@ -358,71 +347,45 @@ Sprawdź:
 - Czy produkty dodane w ćwiczeniach 3–5 nadal istnieją?
 - Czy zmiana frontendu wymagała odtworzenia bazy?
 
-Zapisz zrzut strony i zdarzenie synchronizacji. `Ctrl+C` w terminalu z `docker compose watch` kończy obserwowanie; usługi uruchomione wcześniej przez `up -d` pozostają uruchomione.
+Po sprawdzeniu zmiany strony i komunikatów synchronizacji przywróć Watch na pierwszy plan:
+
+```bash
+fg
+```
+
+Następnie naciśnij **`Ctrl+C`**. To kończy obserwowanie; usługi uruchomione wcześniej przez `up -d` pozostają uruchomione. Jeśli masz inne zadania w tle, najpierw sprawdź ich numery przez `jobs` i przywróć właściwe, np. `fg %1` dla zadania numer 1.
 
 `sync` kopiuje plik do działającego kontenera. Nginx odczytuje HTML przy kolejnym żądaniu, dlatego wystarcza odświeżenie strony. Samo kopiowanie źródła C# nie przebudowałoby skompilowanego backendu. Zmiany synchronizowane przez Watch nie zmieniają również wcześniej zbudowanego obrazu; przy kolejnym odtworzeniu frontendu zaktualizuj obraz przez `docker compose build frontend` lub ponownie uruchom Watch.
 
 Więcej: [Compose Watch i wymagania wersji](https://docs.docker.com/compose/how-tos/file-watch/).
 
-## 7. Sprawdź wynik i oddaj pracę
+## Artefakty do oddania
 
-**Cel:** potwierdzisz, że kompletna aplikacja daje się ponownie uruchomić, a dane bazy pozostają zachowane. Zapiszesz konfigurację i wyniki swojej pracy w sprawozdaniu oraz Pull Requeście.
+Prześlij prowadzącemu cztery czytelne zrzuty ekranu:
 
-Zakończ Watch przez `Ctrl+C`. Zweryfikuj kompletny projekt, odtwarzając go z aktualnego kodu i zachowując wolumen:
+1. **Poprawna konfiguracja Compose** — pokaż polecenia i wynik:
 
-```bash
-docker compose config --quiet
-docker compose down
-docker compose up -d --build
-docker compose ps
-curl -fsS http://localhost:8080/api/products
-```
+   ```bash
+   docker compose config --quiet
+   echo "Kod zakończenia: $?"
+   ```
 
-Odśwież stronę. Powinien pozostać zmieniony nagłówek oraz produkty zapisane po dodaniu wolumenu.
+   Kod `0` oznacza poprawną walidację. Drugie polecenie wykonaj bezpośrednio po pierwszym.
 
-Uzupełnij `../README.md`. Do oddania wymagane są:
+2. **Działająca strona** — widoczny zmieniony nagłówek z ćwiczenia Watch oraz produkt `Z wolumenem`, który pozostał po odtworzeniu bazy w ćwiczeniu 4.
+3. **Uruchomione kontenery** — wynik `docker ps`, z widocznymi czterema usługami aplikacji i stanem `healthy` przy bazie danych.
+4. **Izolacja sieci** — jeden zrzut z oboma wynikami z ćwiczenia 5: połączenie z `db:1433` działa w `backend-network`, a próba z `app-network` kończy się błędem.
 
-1. Własna działająca kopia aplikacji i `docker-compose.yml`: wolumen, healthcheck bazy, oczekiwanie backendu, dwie sieci i Watch; gateway na porcie 8080.
-2. Zrzut `docker compose ps` i działającej strony z produktami.
-3. Tabela obserwacji trwałości danych, z dowodem zachowania produktu po `down/up` z wolumenem.
-4. Wyniki dwóch testów sieci: dostęp z `backend-network` i brak dostępu z `app-network`.
-5. Dowód synchronizacji Watch i odpowiedzi na pytania ze skryptu.
-
-Zrzuty zapisz we własnym katalogu oddania, np. `../screenshots/`, i podlinkuj w sprawozdaniu. Nie dołączaj haseł do bramy, tokenów, wyników `docker inspect` zawierających prywatne dane ani plików kompilacji `bin/` i `obj/`.
-
-Z katalogu `sample-app` wróć do katalogu głównego repozytorium:
-
-```bash
-cd ../../../..
-git status --short
-git add lab4/submissions/twoj-login
-git diff --cached --stat
-```
-
-Sprawdź, czy podsumowanie zawiera **wyłącznie Twój katalog `lab4/submissions/twoj-login/`**. Następnie:
-
-```bash
-git commit -m "Add Lab 4 submission for twoj-login"
-git push --set-upstream origin lab4/twoj-login
-```
-
-Na GitHub utwórz Pull Request do `main` repozytorium kursowego z tytułem **`Lab 4 – twoj-login`**. Korzystaj z własnego konta. Przekaż prowadzącemu URL PR w miejscu wskazanym na zajęciach i pozostaw go otwartego do oceny. Przy braku uprawnień do push zgłoś to prowadzącemu.
-
-Po zebraniu dowodów możesz zatrzymać projekt przez `docker compose down`, będąc ponownie w swojej kopii `sample-app`. Wolumen pozostaw do czasu oceny.
-
-## Zadania dodatkowe
-
-- **Kontekst budowania:** przenieś Dockerfile backendu do katalogu `docker/` we własnej kopii i ustaw `build.context: ./backend` oraz `build.dockerfile: ../docker/backend.Dockerfile`. Sprawdź `docker compose build backend` i wyjaśnij, względem czego Docker interpretuje `COPY`.
-- **Świadome usunięcie danych:** po ocenie i wyłącznie dla demonstracyjnej bazy tego projektu wykonaj `docker compose down -v`, uruchom projekt ponownie i porównaj wynik z wcześniejszym przewidywaniem.
+Zrzuty przekaż w miejscu wskazanym na zajęciach. Po ich wykonaniu możesz zatrzymać projekt przez `docker compose down`, będąc w swojej kopii `sample-app`. Wolumen pozostaw do czasu oceny.
 
 ## Gdy coś nie działa
 
 | Objaw | Co sprawdzić |
 |---|---|
 | `port is already allocated` | `docker ps --filter publish=8080`; zatrzymaj swój poprzedni kontener lab3 lub ręczny gateway. |
-| Brama zwraca 502/503 | Przywróć port `8080:80`, sprawdź `docker compose ps -a` i żądanie `curl` na Ubuntu; sprawdź końcowy ukośnik w `/site/N/`. |
+| Brama zwraca 502/503 | Sprawdź mapowanie `8080:80`, `docker compose ps -a` i żądanie `curl` na Ubuntu; sprawdź końcowy ukośnik w `/site/N/`. |
 | Strona się otwiera, ale API nie działa | `docker compose logs --tail 50 backend gateway db`; poczekaj na bazę. Nie dodawaj początkowego `/` do `api/products` we frontendzie. |
 | Baza ma status `unhealthy` | `docker compose logs --tail 50 db`; sprawdź pamięć, hasło, ścieżkę `sqlcmd` i parametr `-C`. |
 | Nginx zgłasza brak hosta upstream | Sprawdź przypisanie usług do sieci; po poprawieniu wykonaj `docker compose down` i `docker compose up -d`, bez `-v`. |
-| Watch nie widzi zmian | Sprawdź wersję Compose, działającą sesję Watch i edycję pliku w tej samej kopii projektu na Ubuntu. |
+| Watch nie widzi zmian | Sprawdź `jobs`, komunikaty w `tail -n 20 /tmp/lab4-watch.log`, wersję Compose i edycję pliku w tej samej kopii projektu na Ubuntu. |
 | YAML nie przechodzi walidacji | Sprawdź podział na linie, wcięcia i powtórzone klucze. Po ćwiczeniu 4 porównaj plik z [compose.healthcheck.yml](sample-app/compose.healthcheck.yml). `db` i `backend` są osobnymi usługami; parametry healthchecka należą do `db.healthcheck`. |
