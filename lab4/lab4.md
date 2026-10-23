@@ -290,7 +290,7 @@ docker run --rm --network lab4_app-network python:3.12-alpine \
 echo "Kod zakończenia: $?"
 ```
 
-Oczekiwany jest **błąd wyszukania nazwy lub połączenia i niezerowy kod zakończenia**. To poprawny rezultat testu izolacji. Zachowaj oba wyniki.
+Oczekiwany jest **błąd wyszukania nazwy lub połączenia i niezerowy kod zakończenia**. To poprawny rezultat testu izolacji. Porównaj go z wynikiem poprzedniego testu.
 
 Otwórz aplikację i dodaj kolejny produkt. Backend ma dostęp do obu sieci, dlatego aplikacja nadal działa.
 
@@ -374,7 +374,7 @@ Prześlij prowadzącemu cztery czytelne zrzuty ekranu:
 
 2. **Działająca strona** — widoczny zmieniony nagłówek z ćwiczenia Watch oraz produkt `Z wolumenem`, który pozostał po odtworzeniu bazy w ćwiczeniu 4.
 3. **Uruchomione kontenery** — wynik `docker ps`, z widocznymi czterema usługami aplikacji i stanem `healthy` przy bazie danych.
-4. **Izolacja sieci** — jeden zrzut z oboma wynikami z ćwiczenia 5: połączenie z `db:1433` działa w `backend-network`, a próba z `app-network` kończy się błędem.
+4. **Aktualny plik `docker-compose.yml`** — czytelny zrzut końcowej wersji pliku po wykonaniu ćwiczeń, z konfiguracją wolumenu, healthchecka, sieci i Compose Watch.
 
 Zrzuty przekaż w miejscu wskazanym na zajęciach. Po ich wykonaniu możesz zatrzymać projekt przez `docker compose down`, będąc w swojej kopii `sample-app`. Wolumen pozostaw do czasu oceny.
 
