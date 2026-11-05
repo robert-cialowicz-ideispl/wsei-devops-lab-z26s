@@ -1,0 +1,4 @@
+sample-ci/backend/**/bin/
+sample-ci/backend/**/obj/
+sample-ci/frontend/node_modules/
+sample-ci/frontend/dist/

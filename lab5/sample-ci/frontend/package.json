@@ -1,0 +1,21 @@
+{
+  "name": "product-manager-frontend",
+  "version": "1.0.0",
+  "description": "Simple product manager frontend",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest",
+    "build": "npm run copy-files",
+    "copy-files": "mkdir -p dist && cp index.html app.js dist/",
+    "lint": "eslint app.js"
+  },
+  "keywords": ["product", "manager"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/preset-env": "^7.23.0",
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

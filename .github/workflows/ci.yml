@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-restore:
+    name: Backend - restore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj
+
+  backend-build:
+    name: Backend - build
+    needs: backend-restore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj
+      - run: dotnet build lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release
+
+  backend-test:
+    name: Backend - test
+    needs: backend-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet test lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release
+
+  backend-publish:
+    name: Backend - publish
+    needs: backend-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet publish lab5/sample-ci/backend/ProductApi/ProductApi.csproj --configuration Release --output ${{ runner.temp }}/productapi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-publish
+          path: ${{ runner.temp }}/productapi
+
+  frontend-install:
+    name: Frontend - install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+
+  frontend-test:
+    name: Frontend - test
+    needs: frontend-install
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm test -- --runInBand
+
+  frontend-build:
+    name: Frontend - build
+    needs: frontend-test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: lab5/sample-ci/frontend/dist
