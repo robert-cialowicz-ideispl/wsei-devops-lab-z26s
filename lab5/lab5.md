@@ -1,88 +1,147 @@
 # Laboratorium 5 – CI w GitHub Actions
 
-**Cel:** automatycznie budować i testować aplikację, porównać prosty i zoptymalizowany workflow oraz sprawdzić, jak wyniki CI kontrolują pull request.
+**Cel:** samodzielnie przebudować pipeline, który buduje i testuje aplikację, oraz wykorzystać wyniki CI do kontroli pull requestów.
 
-W tym laboratorium używamy GitHub Actions. Pipeline kończy się na zbudowaniu i sprawdzeniu aplikacji — wdrażanie będzie omawiane później.
+Punktem startowym jest działający, ale nieoptymalny workflow `CI`. Twoim zadaniem będzie przygotowanie własnego pliku `ci-optimized.yml`. Oddajesz kod workflow, dowód wykrycia błędu przez CI i krótkie uzasadnienie swoich decyzji.
 
-## 1. Przygotuj repozytorium
+## 1. Przygotuj własne repozytorium
 
-Sklonuj własny fork repozytorium i przejdź do katalogu:
+Potrzebujesz konta GitHub, edytora i terminala z Git. Polecenia poniżej są przeznaczone dla Bash. Budowanie i testy wykonają się na runnerach GitHub — instalacja .NET i Node.js lokalnie jest opcjonalna.
+
+1. Utwórz **publiczny fork** [repozytorium studiów stacjonarnych](https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s). Jeśli masz już fork z poprzednich zajęć, użyj **Sync fork**, aby pobrać aktualne materiały.
+2. Zastąp `TWOJ_LOGIN` swoim loginem GitHub i sklonuj własny fork:
 
 ```bash
-git clone https://github.com/<twoj-login>/wsei-devops-lab-z26s.git
+git clone https://github.com/TWOJ_LOGIN/wsei-devops-lab-z26s.git
 cd wsei-devops-lab-z26s
-git switch main
-git pull
-git switch -c lab5/<twoj-login>
+git switch -c lab5/ci
 ```
 
-Zastąp `<twoj-login>` swoim loginem GitHub. Pracuj na tej gałęzi i w swoim forku.
+Jeśli korzystasz z istniejącej kopii, najpierw przejdź na `main` i pobierz zmiany przez `git pull --ff-only`, a następnie utwórz gałąź roboczą.
 
-Projekt do ćwiczeń znajduje się w `lab5/sample-ci`. Zawiera backend .NET, frontend JavaScript oraz testy obu części. Workflow'y są w `.github/workflows/ci.yml` i `.github/workflows/ci-optimized.yml`.
+3. Sprawdź, że `origin` wskazuje Twój fork: `git remote -v`.
+4. W zakładce **Actions** swojego forka włącz workflow'y, jeśli GitHub o to poprosi.
 
-## 2. Uruchom i przeanalizuj podstawowy workflow
+Projekt `lab5/sample-ci` zawiera backend .NET 8, frontend JavaScript oraz testy obu części. Workflow startowy znajduje się w `.github/workflows/ci.yml`.
 
-Workflow `CI` uruchamia się po pushu do `main` oraz przy pull requeście kierowanym do `main`.
+## 2. Uruchom pipeline i znajdź problemy
 
-1. Otwórz `.github/workflows/ci.yml`.
-2. Rozpoznaj sekcje `on`, `permissions`, `jobs`, `steps` oraz `needs`.
-3. Wykonaj zmianę w `lab5/sample-ci/frontend/index.html`, a następnie zapisz ją, commitując i wysyłając na swoją gałąź:
+1. Otwórz `ci.yml`. Rozpoznaj zdarzenia w `on`, joby, kroki, runnery oraz zależności `needs`.
+2. Zmień tytuł strony w `lab5/sample-ci/frontend/index.html`, a następnie zapisz zmianę:
 
 ```bash
 git add lab5/sample-ci/frontend/index.html
-git commit -m "Trigger lab 5 CI"
-git push -u origin lab5/<twoj-login>
+git commit -m "Start lab 5 CI exercise"
+git push -u origin lab5/ci
 ```
 
-4. W GitHub otwórz PR z tej gałęzi do `main`; uruchomią się workflow'y CI.
-5. W zakładce **Actions** sprawdź kolejność jobów, logi oraz artefakty `backend-publish` i `frontend-dist`.
+3. Otwórz PR z `lab5/ci` do `main` **w swoim forku**. Sprawdź pole **base repository** — powinno wskazywać Twoje konto, a nie repozytorium prowadzącego.
+4. Jeśli workflow'y w forku wymagają zatwierdzenia pierwszego przebiegu, zatwierdź go w zakładce **Actions**.
+5. Obejrzyj graf i logi workflow `CI`. Pobierz artefakty `backend-publish` i `frontend-dist`; sprawdź, jakie pliki zawierają.
+6. Utwórz `lab5/report.md` i zapisz:
+   - co najmniej trzy miejsca, w których powtarzana jest praca;
+   - które joby działają równolegle, a które czekają na poprzednie;
+   - czas całego przebiegu oraz czas wybranego joba.
 
-Zwróć uwagę, że każdy job działa na osobnym runnerze. Następny job nie otrzymuje plików z poprzedniego automatycznie; potrzebuje własnego checkoutu albo artefaktu.
+**Pytanie do analizy:** dlaczego job `backend-test` ponownie pobiera kod i buduje projekt, mimo że wcześniejszy job wykonał już build? Każdy job otrzymuje osobnego runnera. Samo `needs` nie przekazuje plików ani zainstalowanych zależności.
 
-## 3. Zoptymalizuj workflow
+## 3. Samodzielnie zbuduj zoptymalizowany workflow
 
-Otwórz `.github/workflows/ci-optimized.yml`. Ten workflow łączy kroki backendu w jeden job i kroki frontendu w drugi. Oba joby mogą działać równolegle.
-
-1. Otwórz PR z gałęzi roboczej do `main`; uruchomią się oba workflow'y.
-2. Porównaj czas wykonania oraz widok grafu jobów dla **CI** i **CI - Optimized**.
-3. W workflow zoptymalizowanym odszukaj:
-   - cache NuGet i npm;
-   - `npm ci` oraz flagi `--no-restore` i `--no-build`;
-   - równoległe joby `backend` i `frontend`;
-   - artefakty dostępne do pobrania po zakończeniu workflow.
-4. Zapisz czasy obu przebiegów i wyjaśnij, które zmiany wpłynęły na wynik.
-
-Workflow `CI - Optimized` dodaje też job `quality-gate`. Jego `needs: [backend, frontend]` oznacza, że wystartuje dopiero po pomyślnym zakończeniu obu kontroli. Jeśli którykolwiek test nie przejdzie, bramka również nie przejdzie.
-
-## 4. Sprawdź działanie quality gate i PR
-
-1. W gałęzi z otwartym PR-em edytuj `lab5/sample-ci/frontend/app.test.js` i tymczasowo zmień oczekiwaną wartość w jednym asercie, aby test nie przechodził.
-2. Zacommituj zmianę i wypchnij ją na tę samą gałąź.
-3. Sprawdź, że job frontendu oraz `quality-gate` zakończyły się błędem.
-4. Przywróć poprawną wartość, wypchnij poprawkę i sprawdź zielony wynik workflow.
-5. Jeśli ustawienia repozytorium na to pozwalają, w **Settings → Rules** skonfiguruj regułę dla `main`, która wymaga PR-a oraz przejścia checku **Quality gate** przed scaleniem.
-
-Po zakończeniu zamknij testowy PR albo zmerguj poprawiony PR, zgodnie z ustaleniami prowadzącego.
-
-## 5. Zapisz i oddaj pracę
-
-Wyślij zmiany na swoją gałąź i utwórz PR do `main` w swoim repozytorium:
+Skopiuj plik startowy:
 
 ```bash
-git add .github/workflows/ci-optimized.yml lab5
+cp .github/workflows/ci.yml .github/workflows/ci-optimized.yml
+```
+
+Nadaj kopii nazwę workflow **CI - Optimized**. Przebuduj jej sekcję `jobs` zgodnie z poniższymi wymaganiami. Oryginalny `ci.yml` zachowaj do porównania.
+
+| Element | Wymaganie |
+|---|---|
+| Uruchamianie | Push do `main` i PR kierowany do `main` |
+| Uprawnienia | Odczyt zawartości repozytorium |
+| Job `backend` | Checkout, .NET 8, restore, build, test i publish |
+| Job `frontend` | Checkout, Node.js 20, instalacja zależności, test i build |
+| Równoległość | Backend i frontend startują niezależnie od siebie |
+| Powtórzenia | SDK i zależności przygotowujesz raz w każdym jobie |
+| Artefakty | Można pobrać opublikowany backend i zbudowany frontend |
+
+Samodzielnie dobierz akcje, kolejność kroków, katalogi pracy i ścieżki artefaktów. Polecenia budowania i testowania znajdziesz w pliku startowym.
+
+**Wskazówki:**
+
+- W backendzie restore i build projektu testowego obejmują również projekt API, do którego odwołują się testy.
+- Po wykonaniu restore użyj `--no-restore` przy buildzie, a po buildzie użyj `--no-build` przy testach i publish.
+- Zachowaj tę samą konfigurację `Release` we wszystkich poleceniach .NET.
+- W frontendzie wykorzystaj istniejący lockfile i `npm ci`.
+- `defaults.run.working-directory` dotyczy kroków `run`; ścieżkę dla `upload-artifact` podaj względem katalogu głównego repozytorium.
+- Sprawdź, czy nie pozostawiłeś `needs` wskazujących na usunięte joby.
+
+Zacommituj nowy plik i wypchnij go na gałąź z otwartym PR-em. Oba workflow'y powinny się uruchomić. Popraw błędy YAML, ścieżek lub poleceń na podstawie logów, aż oba joby nowego workflow zakończą się sukcesem.
+
+## 4. Dodaj cache i porównaj wyniki
+
+Rozszerz własny workflow o cache zależności:
+
+1. Dla backendu użyj `actions/cache@v4`, aby zapamiętać katalog `~/.nuget/packages`. Zbuduj klucz uwzględniający system runnera i hash plików `.csproj`.
+2. Dla frontendu skonfiguruj cache npm w `actions/setup-node@v4`. Wskaż właściwy `cache-dependency-path` do `package-lock.json`.
+3. Wypchnij zmianę i obejrzyj logi odtwarzania cache.
+4. Wykonaj kolejny commit, np. uzupełniając raport, aby porównać przebieg z już zapisanym cache.
+5. W raporcie zestaw czas workflow bazowego i własnego dla tego samego commita oraz zanotuj, czy cache został odtworzony.
+
+Cache npm przechowuje pobrane pakiety, a nie gotowy katalog `node_modules` — krok `npm ci` nadal jest potrzebny. Cache i artefakt mają różne zastosowania: cache przyspiesza kolejne przebiegi, a artefakt udostępnia wynik konkretnego przebiegu.
+
+Nie zakładaj z góry konkretnego przyspieszenia. Opisz rzeczywisty wynik, uwzględniając czas oczekiwania na runnera i pierwszy przebieg bez cache.
+
+## 5. Wykaż, że CI wykrywa błąd w PR
+
+1. Na tej samej gałęzi zmień **jedną oczekiwaną wartość** w `lab5/sample-ci/frontend/app.test.js`, aby istniejący test się nie powiódł.
+2. Zacommituj zmianę i wypchnij ją do otwartego PR-a.
+3. W logach znajdź nazwę nieudanego testu, oczekiwaną wartość oraz otrzymany wynik. Zapisz w raporcie link do przebiegu.
+4. Sprawdź, które joby zakończyły się błędem, a które nadal mogły działać.
+5. Napraw zmianę w kolejnym commicie i wykaż, że checki PR-a ponownie są zielone.
+6. W swoim repozytorium skonfiguruj regułę dla `main`, która wymaga PR-a i pomyślnych checków obu jobów z **Twojego** workflow. Wybierz ich rzeczywiste nazwy widoczne w GitHub. Jeśli Twój plan lub uprawnienia nie pozwalają włączyć reguły, opisz ograniczenie w raporcie.
+
+Nie usuwaj testu ani kroku testowania, aby uzyskać zielony wynik. W historii PR-a mają pozostać zarówno commit wykryty jako błędny, jak i jego poprawka.
+
+## 6. Dodatkowe wyzwanie: wspólna bramka quality gate
+
+Dodaj do swojego workflow trzeci job o identyfikatorze `quality-gate`, który zbiera wyniki backendu i frontendu.
+
+Wymagane zachowanie:
+
+- czeka na oba joby przez `needs: [backend, frontend]`;
+- uruchamia się również wtedy, gdy któryś z nich zawiedzie;
+- kończy się sukcesem tylko wtedy, gdy **oba** wyniki są równe `success`;
+- w przypadku błędu kończy się niezerowym kodem wyjścia.
+
+**Wskazówki:** sprawdź warunek joba `always()`, kontekst `needs.backend.result` i polecenie Bash `exit 1`. Samo dodanie `needs` nie wystarcza: po błędzie zależności kolejny job może zostać pominięty. Twoja bramka ma jawnie zgłosić błąd.
+
+Powtórz scenariusz z błędnym testem i jego naprawą. Jeśli bramka działa poprawnie, ustaw jej check jako wymagany dla PR-a. Do raportu dołącz graf jobów i wyniki obu scenariuszy.
+
+## 7. Oddaj pracę
+
+Uzupełnij `lab5/report.md`, zapisz zmiany i wypchnij je na gałąź roboczą:
+
+```bash
+git add .github/workflows/ci-optimized.yml lab5/report.md
 git commit -m "Complete lab 5 CI exercise"
 git push
 ```
 
-W opisie PR podaj:
+Przekaż prowadzącemu link do otwartego PR-a w swoim forku. PR powinien zawierać:
 
-- wynik i czasy dwóch workflow'ów;
-- co zmieniło optymalizację;
-- zrzut ekranu pokazujący zielony `quality-gate` dla poprawnego PR.
+- **Twój plik `ci-optimized.yml`** z dwoma równoległymi jobami, cache i artefaktami;
+- raport z diagnozą workflow startowego i uzasadnieniem zmian;
+- czasy przebiegów oraz informację o odtworzeniu cache;
+- link do przebiegu z nieudanym testem i do przebiegu po naprawie;
+- dowód wymaganych checków PR-a albo opis ograniczenia ustawień;
+- jeśli wykonasz wyzwanie: własny `quality-gate` i dowody jego działania.
 
-## Dodatkowe pytania
+Nie scalaj PR-a przed oddaniem pracy. Prowadzący powinien móc przejrzeć zmiany, historię commitów i wyniki CI.
 
-- Dlaczego testy backendu i frontendu mogą działać równolegle?
-- Kiedy warto użyć `needs`, a kiedy zależność między jobami tylko wydłuża pipeline?
-- Do czego służą artefakty i czym różnią się od cache?
-- Dlaczego publikowanie obrazu lub wdrożenie aplikacji powinno nastąpić dopiero po przejściu wymaganych testów?
+## Dokumentacja pomocnicza
+
+- [Składnia workflow, jobów i needs](https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions)
+- [Cache zależności](https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows)
+- [Artefakty workflow](https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts)
+- [Kontekst needs](https://docs.github.com/en/actions/learn-github-actions/contexts#needs-context)

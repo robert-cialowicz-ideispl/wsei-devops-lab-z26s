@@ -22,4 +22,4 @@ npm test
 npm run build
 ```
 
-Workflow nie wdraża aplikacji. Sprawdza, czy zmiany można zbudować i przetestować, a job `quality-gate` zbiera wyniki wymagane do przejścia kontroli PR.
+Workflow startowy `CI` buduje i testuje aplikację. W [instrukcji lab5](../lab5.md) samodzielnie przygotujesz zoptymalizowany workflow z cache, artefaktami i kontrolą PR. Dodatkowym wyzwaniem jest własny job `quality-gate`.
