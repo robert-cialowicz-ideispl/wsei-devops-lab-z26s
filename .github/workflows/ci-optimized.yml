@@ -31,6 +31,12 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
+      - uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
       - run: dotnet restore lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj
       - run: dotnet build lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-restore
       - run: dotnet test lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-build
@@ -51,7 +57,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: lab5/sample-ci/frontend/package-lock.json
+          package-manager-cache: true
       - run: npm ci
       - run: npm test -- --runInBand
       - run: npm run build
