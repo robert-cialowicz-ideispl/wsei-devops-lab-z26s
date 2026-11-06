@@ -1,0 +1,87 @@
+name: CI - Optimized - 64312
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lab5/**'
+      - '.github/workflows/ci*.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lab5/**'
+      - '.github/workflows/ci*.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend Build & Test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Publish
+        run: dotnet publish --no-build -c Release -o output
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-publish-optimized
+          path: lab5/sample-ci/backend/output
+
+  frontend:
+    name: Frontend Build & Test
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist-optimized
+          path: lab5/sample-ci/frontend/dist
