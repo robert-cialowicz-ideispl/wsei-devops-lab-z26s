@@ -1,5 +1,5 @@
 name: CI - Optimized - 64381
-run-name: "CI - Optimized | ${{ github.head_ref \vert{}\vert{} github.ref_name }} \vert{} @${{ github.actor }}"
+run-name: CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}
 
 on:
   push:
@@ -89,4 +89,23 @@ jobs:
         run: npm run build
 
       - name: Upload frontend artifact
-        uses: actions
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: lab5/sample-ci/frontend/dist
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    if: always()
+    steps:
+      - name: Evaluate status
+        run: |
+          echo "Backend result:  ${{ needs.backend.result }}"
+          echo "Frontend result: ${{ needs.frontend.result }}"
+          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ]; then
+            echo "Quality gate failed: co najmniej jeden z wymaganych jobow zakonczyl sie bledem!"
+            exit 1
+          fi
+          echo "Quality gate passed: wszystkie joby zakonczone sukcesem."
