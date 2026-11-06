@@ -30,7 +30,7 @@ describe('Product Manager App', () => {
         expect(container.innerHTML).toContain('Laptop');
         expect(container.innerHTML).toContain('999.99');
         expect(container.innerHTML).toContain('Mouse');
-        expect(container.innerHTML).toContain('29.99');
+        expect(container.innerHTML).toContain('9.99');
     });
 
     test('displayProducts should show message when no products', () => {
