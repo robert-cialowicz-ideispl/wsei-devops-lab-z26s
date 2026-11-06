@@ -45,7 +45,7 @@ jobs:
         run: dotnet build ProductApi/ProductApi.csproj --no-restore -c Release
 
       - name: Test
-        run: dotnet test ProductApi.Tests/ProductApi.Tests.csproj --no-build -c Release
+        run: dotnet test ProductApi.Tests/ProductApi.Tests.csproj --no-build
 
       - name: Publish
         run: dotnet publish ProductApi/ProductApi.csproj --no-build -c Release -o output
