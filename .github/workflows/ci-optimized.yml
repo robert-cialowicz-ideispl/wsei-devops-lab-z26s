@@ -1,10 +1,23 @@
 ﻿name: CI - Optimized
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-optimized.yml'
+      - 'lab5/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-optimized.yml'
+      - 'lab5/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -12,7 +25,7 @@ permissions:
 jobs:
   backend:
     name: Backend CI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: lab5/sample-ci/backend
@@ -23,7 +36,7 @@ jobs:
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: 8.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -34,27 +47,26 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore Backend.Tests/Backend.Tests.csproj
+        run: dotnet restore ProductApi.Tests/ProductApi.Tests.csproj
 
       - name: Build
-        run: dotnet build Backend.Tests/Backend.Tests.csproj --configuration Release --no-restore
+        run: dotnet build ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-restore
 
       - name: Run Tests
-        run: dotnet test Backend.Tests/Backend.Tests.csproj --configuration Release --no-build --verbosity normal
+        run: dotnet test ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-build
 
       - name: Publish API
-        run: dotnet publish Backend.Api/Backend.Api.csproj --configuration Release --no-build --output ./publish
+        run: dotnet publish ProductApi/ProductApi.csproj --configuration Release --no-build --output ./publish
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-publish
-          path: lab5/sample-ci/backend/publish/
-          if-no-files-found: error
+          path: lab5/sample-ci/backend/publish
 
   frontend:
     name: Frontend CI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: lab5/sample-ci/frontend
@@ -73,7 +85,7 @@ jobs:
         run: npm ci
 
       - name: Run Tests
-        run: npm test
+        run: npm test -- --runInBand
 
       - name: Build Frontend
         run: npm run build
@@ -82,12 +94,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: lab5/sample-ci/frontend/dist/
-          if-no-files-found: error
+          path: lab5/sample-ci/frontend/dist
 
   quality-gate:
     name: Quality Gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [backend, frontend]
     if: always()
     steps:
