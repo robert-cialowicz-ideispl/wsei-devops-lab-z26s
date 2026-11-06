@@ -1,0 +1,121 @@
+
+name: CI - Optimized - 64255
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-optimized.yml'
+      - 'lab5/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-optimized.yml'
+      - 'lab5/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('lab5/sample-ci/backend/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj
+
+      - name: Build
+        run: dotnet build lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj --configuration Release --no-build
+
+      - name: Publish
+        run: dotnet publish lab5/sample-ci/backend/ProductApi/ProductApi.csproj --configuration Release --no-build --no-restore --output ${{ runner.temp }}/productapi
+
+      - name: Upload backend
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-publish
+          path: ${{ runner.temp }}/productapi
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-24.04
+
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: true
+          cache: npm
+          cache-dependency-path: lab5/sample-ci/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test -- --runInBand
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload frontend
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: lab5/sample-ci/frontend/dist
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    if: always()
+
+    steps:
+      - name: Check results
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+        run: |
+          echo "Backend: $BACKEND_RESULT"
+          echo "Frontend: $FRONTEND_RESULT"
+
+          if [ "$BACKEND_RESULT" != "success" ] || [ "$FRONTEND_RESULT" != "success" ]; then
+            echo "Quality gate failed!"
+            exit 1
+          fi
+
+          echo "Quality gate passed!"
