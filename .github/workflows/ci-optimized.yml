@@ -1,0 +1,115 @@
+name: CI - Optimized - 64394
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lab5/**'
+      - '.github/workflows/ci-optimized.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'lab5/**'
+      - '.github/workflows/ci-optimized.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/backend
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('lab5/sample-ci/backend/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        run: dotnet test --no-build -c Release
+
+      - name: Publish
+        run: dotnet publish --no-build -c Release -o ./publish
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-publish
+          path: lab5/sample-ci/backend/publish
+
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: lab5/sample-ci/frontend
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: lab5/sample-ci/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: lab5/sample-ci/frontend/dist
+
+  quality-gate:
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    if: always()
+    steps:
+      - name: Check Status of Jobs
+        run: |
+          BACKEND_RESULT="${{ needs.backend.result }}"
+          FRONTEND_RESULT="${{ needs.frontend.result }}"
+          echo "Backend job status: $BACKEND_RESULT"
+          echo "Frontend job status: $FRONTEND_RESULT"
+
+          if [ "$BACKEND_RESULT" = "success" ] && [ "$FRONTEND_RESULT" = "success" ]; then
+            echo "Quality Gate PASSED!"
+            exit 0
+          else
+            echo "Quality Gate FAILED!"
+            exit 1
+          fi
