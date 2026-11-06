@@ -8,7 +8,7 @@ describe('Product Manager App', () => {
         document.body.innerHTML = '<div id="products"></div>';
 
         const products = [
-            { name: 'Laptop', price: 999.99 },
+            { name: 'NieistniejacyProdukt', price: 999.99 },
             { name: 'Mouse', price: 29.99 }
         ];
 
@@ -27,7 +27,7 @@ describe('Product Manager App', () => {
 
         // Assert
         const container = document.getElementById('products');
-        expect(container.innerHTML).toContain('Laptop');
+        expect(container.innerHTML).toContain('NieistniejacyProdukt');
         expect(container.innerHTML).toContain('999.99');
         expect(container.innerHTML).toContain('Mouse');
         expect(container.innerHTML).toContain('29.99');
