@@ -4,23 +4,25 @@
 
 Punktem startowym jest działający, ale nieoptymalny workflow `CI`. Twoim zadaniem będzie przygotowanie własnego pliku `ci-optimized.yml`. Oddajesz kod workflow, dowód wykrycia błędu przez CI i krótkie uzasadnienie swoich decyzji.
 
-## 1. Przygotuj własne repozytorium
+## 1. Przygotuj własną gałąź we wspólnym repozytorium
 
 Potrzebujesz konta GitHub, edytora i terminala z Git. Polecenia poniżej są przeznaczone dla Bash. Budowanie i testy wykonają się na runnerach GitHub — instalacja .NET i Node.js lokalnie jest opcjonalna.
 
-1. Utwórz **publiczny fork** [repozytorium studiów stacjonarnych](https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s). Jeśli masz już fork z poprzednich zajęć, użyj **Sync fork**, aby pobrać aktualne materiały.
-2. Zastąp `TWOJ_LOGIN` swoim loginem GitHub i sklonuj własny fork:
+1. Przyjmij zaproszenie do [repozytorium studiów stacjonarnych](https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s), jeśli prowadzący je wysłał. Do wysyłania gałęzi potrzebujesz dostępu **Write** i logowania własnym kontem GitHub.
+2. Sklonuj wspólne repozytorium. We wszystkich przykładach zastąp `12345` **swoim numerem albumu**:
 
 ```bash
-git clone https://github.com/TWOJ_LOGIN/wsei-devops-lab-z26s.git
+git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git
 cd wsei-devops-lab-z26s
-git switch -c lab5/ci
+git switch -c lab5/12345
 ```
 
-Jeśli korzystasz z istniejącej kopii, najpierw przejdź na `main` i pobierz zmiany przez `git pull --ff-only`, a następnie utwórz gałąź roboczą.
+Jeśli korzystasz z istniejącej kopii tego repozytorium, najpierw zapisz wcześniejszą pracę, przejdź na `main` i pobierz zmiany przez `git pull --ff-only`, a następnie utwórz gałąź roboczą. Jeśli dotychczas korzystałeś z forka, najłatwiej sklonować repozytorium prowadzącego do nowego katalogu, np. dodając `wsei-devops-lab5` na końcu polecenia `git clone`.
 
-3. Sprawdź, że `origin` wskazuje Twój fork: `git remote -v`.
-4. W zakładce **Actions** swojego forka włącz workflow'y, jeśli GitHub o to poprosi.
+3. Sprawdź `git remote -v`: `origin` powinien wskazywać `robert-cialowicz-ideispl/wsei-devops-lab-z26s`. Polecenie `git branch --show-current` powinno pokazać `lab5/TWOJ_NUMER_ALBUMU`.
+4. Edytuj i wysyłaj wyłącznie swoją gałąź. Jeśli push zwraca błąd uprawnień, poproś prowadzącego o dostęp.
+
+Gałęzie studentów są osobne, więc każdy może na swojej gałęzi edytować ten sam plik aplikacji lub `ci-optimized.yml`. Raport zapisz pod własnym numerem albumu. PR służy do przeglądu i oceny; po sprawdzeniu prowadzący zamknie go bez scalania zmian ćwiczeniowych do `main`.
 
 Projekt `lab5/sample-ci` zawiera backend .NET 8, frontend JavaScript oraz testy obu części. Workflow startowy znajduje się w `.github/workflows/ci.yml`.
 
@@ -32,13 +34,13 @@ Projekt `lab5/sample-ci` zawiera backend .NET 8, frontend JavaScript oraz testy 
 ```bash
 git add lab5/sample-ci/frontend/index.html
 git commit -m "Start lab 5 CI exercise"
-git push -u origin lab5/ci
+git push -u origin lab5/12345
 ```
 
-3. Otwórz PR z `lab5/ci` do `main` **w swoim forku**. Sprawdź pole **base repository** — powinno wskazywać Twoje konto, a nie repozytorium prowadzącego.
-4. Jeśli workflow'y w forku wymagają zatwierdzenia pierwszego przebiegu, zatwierdź go w zakładce **Actions**.
-5. Obejrzyj graf i logi workflow `CI`. Pobierz artefakty `backend-publish` i `frontend-dist`; sprawdź, jakie pliki zawierają.
-6. Utwórz `lab5/report.md` i zapisz:
+3. W repozytorium prowadzącego otwórz PR: **base: `main`**, **compare: `lab5/12345`**. Nadaj mu tytuł **`Lab5 — 12345 — Imię Nazwisko`**.
+4. Otwórz zakładkę **Actions** we wspólnym repozytorium. Znajdź wykonanie nazwane np. **`CI | lab5/12345 | @twoj-login`**. Ten sam przebieg znajdziesz w checkach swojego PR-a.
+5. Obejrzyj graf i logi workflow `CI`. Pobierz artefakty `backend-publish` i `frontend-dist`; sprawdź, jakie pliki zawierają. Artefakty są przypisane do konkretnego wykonania, więc wybierz przebieg swojej gałęzi.
+6. Utwórz katalog `lab5/submissions`, jeśli jeszcze go nie ma, i plik `lab5/submissions/12345.md`. Wpisz numer albumu, login GitHub i link do PR-a, a następnie zapisz:
    - co najmniej trzy miejsca, w których powtarzana jest praca;
    - które joby działają równolegle, a które czekają na poprzednie;
    - czas całego przebiegu oraz czas wybranego joba.
@@ -53,11 +55,20 @@ Skopiuj plik startowy:
 cp .github/workflows/ci.yml .github/workflows/ci-optimized.yml
 ```
 
-Nadaj kopii nazwę workflow **CI - Optimized**. Przebuduj jej sekcję `jobs` zgodnie z poniższymi wymaganiami. Oryginalny `ci.yml` zachowaj do porównania.
+Przebuduj sekcję `jobs` kopii zgodnie z poniższymi wymaganiami. Oryginalny `ci.yml` zachowaj do porównania.
+
+Uzupełnij nagłówek nowego pliku, wpisując własny numer albumu:
+
+```yaml
+name: CI - Optimized - 12345
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
+```
+
+`name` identyfikuje workflow, a `run-name` jego konkretne wykonanie. Numer albumu pochodzi w nazwie wykonania z gałęzi `lab5/12345`. Zachowaj skopiowaną sekcję `concurrency`: nowy commit anuluje starsze wykonanie tego samego workflow dla tego samego PR-a. Inne PR-y i workflow'y mają osobne grupy.
 
 | Element | Wymaganie |
 |---|---|
-| Uruchamianie | Push do `main` i PR kierowany do `main` |
+| Uruchamianie | Push do `main` i PR kierowany do `main`, przy zmianach plików wskazanych w `paths` |
 | Uprawnienia | Odczyt zawartości repozytorium |
 | Runner | Ubuntu 24.04 (`ubuntu-24.04`) |
 | Job `backend` | Checkout, .NET 8, restore, build, test i publish |
@@ -92,6 +103,8 @@ Rozszerz własny workflow o cache zależności:
 4. Wykonaj kolejny commit, np. uzupełniając raport, aby porównać przebieg z już zapisanym cache.
 5. W raporcie zestaw czas workflow bazowego i własnego dla tego samego commita oraz zanotuj, czy cache został odtworzony.
 
+Oba workflow'y uruchamiają się po zmianach w `lab5/**` albo w plikach workflow lab5. Dzięki temu PR-y z innych laboratoriów nie uruchamiają tych buildów. W sekcji `pull_request.branches` pozostaje `main` — to filtr gałęzi docelowej PR-a, a nie Twojej gałęzi roboczej.
+
 Cache npm przechowuje pobrane pakiety, a nie gotowy katalog `node_modules` — krok `npm ci` nadal jest potrzebny. Cache i artefakt mają różne zastosowania: cache przyspiesza kolejne przebiegi, a artefakt udostępnia wynik konkretnego przebiegu.
 
 Nie zakładaj z góry konkretnego przyspieszenia. Opisz rzeczywisty wynik, uwzględniając czas oczekiwania na runnera i pierwszy przebieg bez cache.
@@ -102,8 +115,10 @@ Nie zakładaj z góry konkretnego przyspieszenia. Opisz rzeczywisty wynik, uwzgl
 2. Zacommituj zmianę i wypchnij ją do otwartego PR-a.
 3. W logach znajdź nazwę nieudanego testu, oczekiwaną wartość oraz otrzymany wynik. Zapisz w raporcie link do przebiegu.
 4. Sprawdź, które joby zakończyły się błędem, a które nadal mogły działać.
-5. Napraw zmianę w kolejnym commicie i wykaż, że checki PR-a ponownie są zielone.
-6. W swoim repozytorium skonfiguruj regułę dla `main`, która wymaga PR-a i pomyślnych checków obu jobów z **Twojego** workflow. Wybierz ich rzeczywiste nazwy widoczne w GitHub. Jeśli Twój plan lub uprawnienia nie pozwalają włączyć reguły, opisz ograniczenie w raporcie.
+5. Poczekaj na zakończenie błędnego przebiegu. Dopiero wtedy napraw zmianę w kolejnym commicie i wykaż, że checki PR-a ponownie są zielone. Zbyt szybki push poprawki anuluje poprzednie wykonanie przez `concurrency`.
+6. W zakładce checków swojego PR-a wskaż, które kontrole zgłosiły błąd, a które sukces. W raporcie wyjaśnij, jak wymagany check mógłby blokować scalenie. Regułami wspólnego repozytorium zarządza prowadzący.
+
+`main` jest chroniony przed zmianami studentów. Sam brak możliwości scalenia nie dowodzi więc działania wymaganych testów — w tym ćwiczeniu wykazujesz wykrycie błędu przez CI, porównując wyniki checków przed poprawką i po niej.
 
 Nie usuwaj testu ani kroku testowania, aby uzyskać zielony wynik. W historii PR-a mają pozostać zarówno commit wykryty jako błędny, jak i jego poprawka.
 
@@ -120,28 +135,28 @@ Wymagane zachowanie:
 
 **Wskazówki:** sprawdź warunek joba `always()`, kontekst `needs.backend.result` i polecenie Bash `exit 1`. Samo dodanie `needs` nie wystarcza: po błędzie zależności kolejny job może zostać pominięty. Twoja bramka ma jawnie zgłosić błąd.
 
-Powtórz scenariusz z błędnym testem i jego naprawą. Jeśli bramka działa poprawnie, ustaw jej check jako wymagany dla PR-a. Do raportu dołącz graf jobów i wyniki obu scenariuszy.
+Powtórz scenariusz z błędnym testem i jego naprawą. Do raportu dołącz graf jobów i wyniki obu scenariuszy oraz wyjaśnij, dlaczego taka bramka nadaje się na wymagany check PR-a. Ustawienia ochrony `main` pozostają po stronie prowadzącego.
 
 ## 7. Oddaj pracę
 
-Uzupełnij `lab5/report.md`, zapisz zmiany i wypchnij je na gałąź roboczą:
+Uzupełnij `lab5/submissions/12345.md`, zapisz zmiany i wypchnij je na swoją gałąź:
 
 ```bash
-git add .github/workflows/ci-optimized.yml lab5/report.md
+git add .github/workflows/ci-optimized.yml lab5/submissions/12345.md
 git commit -m "Complete lab 5 CI exercise"
 git push
 ```
 
-Przekaż prowadzącemu link do otwartego PR-a w swoim forku. PR powinien zawierać:
+Przekaż prowadzącemu link do swojego otwartego PR-a w repozytorium `robert-cialowicz-ideispl/wsei-devops-lab-z26s`. PR powinien zawierać:
 
 - **Twój plik `ci-optimized.yml`** z dwoma równoległymi jobami, cache i artefaktami;
 - raport z diagnozą workflow startowego i uzasadnieniem zmian;
 - czasy przebiegów oraz informację o odtworzeniu cache;
 - link do przebiegu z nieudanym testem i do przebiegu po naprawie;
-- dowód wymaganych checków PR-a albo opis ograniczenia ustawień;
+- wyniki checków PR-a oraz wyjaśnienie działania wymaganych kontroli;
 - jeśli wykonasz wyzwanie: własny `quality-gate` i dowody jego działania.
 
-Nie scalaj PR-a przed oddaniem pracy. Prowadzący powinien móc przejrzeć zmiany, historię commitów i wyniki CI.
+Pozostaw PR otwarty do oceny. Prowadzący przejrzy zmiany, historię commitów i wyniki CI, a następnie zamknie PR bez scalania. Pliki ćwiczeniowe pozostają na Twojej gałęzi.
 
 ## Dokumentacja pomocnicza
 
