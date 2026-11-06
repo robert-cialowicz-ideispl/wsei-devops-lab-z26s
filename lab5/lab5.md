@@ -92,7 +92,20 @@ Wersje akcji pobierz z pliku startowego: `actions/checkout@v7`, `actions/setup-d
 
 Zacommituj nowy plik i wypchnij go na gałąź z otwartym PR-em. Oba workflow'y powinny się uruchomić. Popraw błędy YAML, ścieżek lub poleceń na podstawie logów, aż oba joby nowego workflow zakończą się sukcesem.
 
-## 4. Dodaj cache i porównaj wyniki
+## 4. Wykaż, że CI wykrywa błąd w PR
+
+1. Na tej samej gałęzi zmień **jedną oczekiwaną wartość** w `lab5/sample-ci/frontend/app.test.js`, aby istniejący test się nie powiódł.
+2. Zacommituj zmianę i wypchnij ją do otwartego PR-a.
+3. W logach znajdź nazwę nieudanego testu, oczekiwaną wartość oraz otrzymany wynik. Zapisz w raporcie link do przebiegu.
+4. Sprawdź, które joby zakończyły się błędem, a które nadal mogły działać.
+5. Poczekaj na zakończenie błędnego przebiegu. Dopiero wtedy napraw zmianę w kolejnym commicie i wykaż, że checki PR-a ponownie są zielone. Zbyt szybki push poprawki anuluje poprzednie wykonanie przez `concurrency`.
+6. W zakładce checków swojego PR-a wskaż, które kontrole zgłosiły błąd, a które sukces. W raporcie wyjaśnij, jak wymagany check mógłby blokować scalenie. Regułami wspólnego repozytorium zarządza prowadzący.
+
+`main` jest chroniony przed zmianami studentów. Sam brak możliwości scalenia nie dowodzi więc działania wymaganych testów — w tym ćwiczeniu wykazujesz wykrycie błędu przez CI, porównując wyniki checków przed poprawką i po niej.
+
+Nie usuwaj testu ani kroku testowania, aby uzyskać zielony wynik. W historii PR-a mają pozostać zarówno commit wykryty jako błędny, jak i jego poprawka.
+
+## 5. Dodaj cache i porównaj wyniki
 
 Rozszerz własny workflow o cache zależności:
 
@@ -108,19 +121,6 @@ Oba workflow'y uruchamiają się po zmianach w `lab5/**` albo w plikach workflow
 Cache npm przechowuje pobrane pakiety, a nie gotowy katalog `node_modules` — krok `npm ci` nadal jest potrzebny. Cache i artefakt mają różne zastosowania: cache przyspiesza kolejne przebiegi, a artefakt udostępnia wynik konkretnego przebiegu.
 
 Nie zakładaj z góry konkretnego przyspieszenia. Opisz rzeczywisty wynik, uwzględniając czas oczekiwania na runnera i pierwszy przebieg bez cache.
-
-## 5. Wykaż, że CI wykrywa błąd w PR
-
-1. Na tej samej gałęzi zmień **jedną oczekiwaną wartość** w `lab5/sample-ci/frontend/app.test.js`, aby istniejący test się nie powiódł.
-2. Zacommituj zmianę i wypchnij ją do otwartego PR-a.
-3. W logach znajdź nazwę nieudanego testu, oczekiwaną wartość oraz otrzymany wynik. Zapisz w raporcie link do przebiegu.
-4. Sprawdź, które joby zakończyły się błędem, a które nadal mogły działać.
-5. Poczekaj na zakończenie błędnego przebiegu. Dopiero wtedy napraw zmianę w kolejnym commicie i wykaż, że checki PR-a ponownie są zielone. Zbyt szybki push poprawki anuluje poprzednie wykonanie przez `concurrency`.
-6. W zakładce checków swojego PR-a wskaż, które kontrole zgłosiły błąd, a które sukces. W raporcie wyjaśnij, jak wymagany check mógłby blokować scalenie. Regułami wspólnego repozytorium zarządza prowadzący.
-
-`main` jest chroniony przed zmianami studentów. Sam brak możliwości scalenia nie dowodzi więc działania wymaganych testów — w tym ćwiczeniu wykazujesz wykrycie błędu przez CI, porównując wyniki checków przed poprawką i po niej.
-
-Nie usuwaj testu ani kroku testowania, aby uzyskać zielony wynik. W historii PR-a mają pozostać zarówno commit wykryty jako błędny, jak i jego poprawka.
 
 ## 6. Dodatkowe wyzwanie: wspólna bramka quality gate
 
