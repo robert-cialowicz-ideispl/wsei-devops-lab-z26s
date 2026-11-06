@@ -68,11 +68,11 @@ jobs:
           cache-dependency-path: lab5/frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: lab5/frontend
 
       - name: Test frontend
-        run: npm test
+        run: npm test -- --watchAll=false
         working-directory: lab5/frontend
 
       - name: Build frontend
@@ -101,7 +101,7 @@ jobs:
           fi
           echo "Quality Gate Passed: Wszystkie joby ukonczone sukcesem!"
 EOF\
-cat << 'EOF' > .github/workflows/ci-optimized.yml
+[200~cat << 'EOF' > .github/workflows/ci-optimized.yml
 name: CI - Optimized - 64308
 
 on:
@@ -172,11 +172,11 @@ jobs:
           cache-dependency-path: lab5/frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: lab5/frontend
 
       - name: Test frontend
-        run: npm test
+        run: npm test -- --watchAll=false
         working-directory: lab5/frontend
 
       - name: Build frontend
