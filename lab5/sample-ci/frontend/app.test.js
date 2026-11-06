@@ -27,7 +27,7 @@ describe('Product Manager App', () => {
 
         // Assert
         const container = document.getElementById('products');
-        expect(container.innerHTML).toContain('NieistniejacyProdukt');
+        expect(container.innerHTML).toContain('Klawiatura');
         expect(container.innerHTML).toContain('999.99');
         expect(container.innerHTML).toContain('Mouse');
         expect(container.innerHTML).toContain('29.99');
