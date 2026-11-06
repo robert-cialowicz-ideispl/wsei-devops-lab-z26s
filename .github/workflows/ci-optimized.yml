@@ -1,0 +1,85 @@
+name: CI - Optimized - 64434
+run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore .NET dependencies
+        run: dotnet restore backend/
+        # Dopasuj ścieżkę do swojego katalogu projektu backendowego
+
+      - name: Build .NET solution
+        run: dotnet build backend/ --configuration Release --no-restore
+
+      - name: Test .NET solution
+        run: dotnet test backend/ --configuration Release --no-build --no-restore
+
+      - name: Publish .NET application
+        run: dotnet publish backend/ --configuration Release --no-build --output ./publish-backend
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-artifact
+          path: ./publish-backend
+
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+        working-directory: frontend
+        # Dopasuj katalog pracy do lokalizacji frontendu
+
+      - name: Run frontend tests
+        run: npm test -- --ci --coverage=false
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-artifact
+          path: frontend/dist
+          # Zmień "frontend/dist" na właściwy folder wyjściowy budowania (np. build, out)
