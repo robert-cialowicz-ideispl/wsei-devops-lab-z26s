@@ -5,7 +5,7 @@ Przykładowy menedżer produktów z backendem .NET i frontendem JavaScript. Proj
 ## Wymagania lokalne
 
 - .NET 8 SDK
-- Node.js 20
+- Node.js 24
 
 ## Testy backendu
 

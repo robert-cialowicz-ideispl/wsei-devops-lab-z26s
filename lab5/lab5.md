@@ -59,13 +59,16 @@ Nadaj kopii nazwę workflow **CI - Optimized**. Przebuduj jej sekcję `jobs` zgo
 |---|---|
 | Uruchamianie | Push do `main` i PR kierowany do `main` |
 | Uprawnienia | Odczyt zawartości repozytorium |
+| Runner | Ubuntu 24.04 (`ubuntu-24.04`) |
 | Job `backend` | Checkout, .NET 8, restore, build, test i publish |
-| Job `frontend` | Checkout, Node.js 20, instalacja zależności, test i build |
+| Job `frontend` | Checkout, Node.js 24, instalacja zależności, test i build |
 | Równoległość | Backend i frontend startują niezależnie od siebie |
 | Powtórzenia | SDK i zależności przygotowujesz raz w każdym jobie |
 | Artefakty | Można pobrać opublikowany backend i zbudowany frontend |
 
 Samodzielnie dobierz akcje, kolejność kroków, katalogi pracy i ścieżki artefaktów. Polecenia budowania i testowania znajdziesz w pliku startowym.
+
+Wersje akcji pobierz z pliku startowego: `actions/checkout@v7`, `actions/setup-dotnet@v6`, `actions/setup-node@v7` i `actions/upload-artifact@v7`. Wersja akcji `setup-node` i jej parametr `node-version: 24` to różne ustawienia — parametr wybiera Node.js do budowania i testowania frontendu.
 
 **Wskazówki:**
 
@@ -82,8 +85,9 @@ Zacommituj nowy plik i wypchnij go na gałąź z otwartym PR-em. Oba workflow'y 
 
 Rozszerz własny workflow o cache zależności:
 
-1. Dla backendu użyj `actions/cache@v4`, aby zapamiętać katalog `~/.nuget/packages`. Zbuduj klucz uwzględniający system runnera i hash plików `.csproj`.
-2. Dla frontendu skonfiguruj cache npm w `actions/setup-node@v4`. Wskaż właściwy `cache-dependency-path` do `package-lock.json`.
+1. Dla backendu użyj `actions/cache@v6`, aby zapamiętać katalog `~/.nuget/packages`. Zbuduj klucz uwzględniający system runnera i hash plików `.csproj`.
+2. Dla frontendu skonfiguruj cache npm w `actions/setup-node@v7`. Wskaż właściwy `cache-dependency-path` do `package-lock.json`.
+   W pliku startowym cache jest celowo wyłączony przez `package-manager-cache: false`. W swoim workflow ustaw tę opcję na `true` i jawnie dodaj `cache: npm`.
 3. Wypchnij zmianę i obejrzyj logi odtwarzania cache.
 4. Wykonaj kolejny commit, np. uzupełniając raport, aby porównać przebieg z już zapisanym cache.
 5. W raporcie zestaw czas workflow bazowego i własnego dla tego samego commita oraz zanotuj, czy cache został odtworzony.
