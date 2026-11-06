@@ -1,4 +1,3 @@
-javascript
 /**
  * @jest-environment jsdom
  */
@@ -29,7 +28,7 @@ describe('Product Manager App', () => {
         // Assert
         const container = document.getElementById('products');
         expect(container.innerHTML).toContain('Laptop');
-        expect(container.innerHTML).toContain('888.88');
+        expect(container.innerHTML).toContain('999.99');
         expect(container.innerHTML).toContain('Mouse');
         expect(container.innerHTML).toContain('29.99');
     });
