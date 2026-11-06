@@ -39,16 +39,16 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore ProductApi/ProductApi.csproj
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build ProductApi/ProductApi.csproj --no-restore -c Release
 
       - name: Test
-        run: dotnet test --no-build -c Release
+        run: dotnet test ProductApi.Tests/ProductApi.Tests.csproj --no-build -c Release
 
       - name: Publish
-        run: dotnet publish --no-build -c Release -o output
+        run: dotnet publish ProductApi/ProductApi.csproj --no-build -c Release -o output
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v7
