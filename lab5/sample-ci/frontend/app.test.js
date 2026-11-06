@@ -53,3 +53,4 @@ describe('Product Manager App', () => {
         expect(container.innerHTML).toContain('No products found');
     });
 });
+test('Failing test simulation', () => { expect(true).toBe(false); });
