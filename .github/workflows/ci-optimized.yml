@@ -1,3 +1,4 @@
+
 name: CI - Optimized - 64368
 
 run-name: "CI - Optimized | ${{ github.head_ref || github.ref_name }} | @${{ github.actor }}"
@@ -36,6 +37,12 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+
       - name: Restore dependencies
         run: dotnet restore lab5/sample-ci/backend/ProductApi.Tests/ProductApi.Tests.csproj
 
@@ -68,7 +75,9 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: npm
+          cache-dependency-path: lab5/sample-ci/frontend/package-lock.json
+          package-manager-cache: true
 
       - name: Install dependencies
         run: npm ci
