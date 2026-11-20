@@ -24,6 +24,16 @@ variable "location" {
   type = string
 }
 
+variable "vm_size" {
+  type    = string
+  default = "Standard_B2ats_v2"
+
+  validation {
+    condition     = contains(["Standard_B1s", "Standard_B2ats_v2"], var.vm_size)
+    error_message = "Use Standard_B1s or Standard_B2ats_v2."
+  }
+}
+
 variable "ssh_public_key_path" {
   type = string
 }
@@ -75,7 +85,7 @@ resource "azurerm_linux_virtual_machine" "lab" {
   name                            = "lab6-vm"
   resource_group_name             = azurerm_resource_group.lab.name
   location                        = azurerm_resource_group.lab.location
-  size                            = "Standard_B2ats_v2"
+  size                            = var.vm_size
   admin_username                  = "labuser"
   disable_password_authentication = true
   network_interface_ids           = [azurerm_network_interface.lab.id]

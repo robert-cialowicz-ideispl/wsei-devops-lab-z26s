@@ -10,7 +10,10 @@ param(
     [string]$Location,
 
     [Parameter(Mandatory)]
-    [string]$PublicKeyPath
+    [string]$PublicKeyPath,
+
+    [ValidateSet('Standard_B1s', 'Standard_B2ats_v2')]
+    [string]$VmSize = 'Standard_B2ats_v2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,7 +59,7 @@ $nicId = Invoke-LabAz network nic show --resource-group $ResourceGroupName --nam
 
 Write-Host '3. Zlecenie utworzenia VM i oczekiwanie na stan Succeeded'
 Invoke-LabAz vm create --resource-group $ResourceGroupName --location $Location --name $vm `
-    --nics $nicId --size Standard_B2ats_v2 --os-disk-size-gb 64 --storage-sku Premium_LRS `
+    --nics $nicId --size $VmSize --os-disk-size-gb 64 --storage-sku Premium_LRS `
     --image Canonical:ubuntu-24_04-lts:server-gen1:latest `
     --admin-username labuser --authentication-type ssh --ssh-key-values $publicKey `
     --no-wait --output none

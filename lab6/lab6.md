@@ -52,13 +52,83 @@ Set-Location 'wsei-devops-lab-z26s/lab6'
 
 Przekaż Azure tylko klucz publiczny (`.pub`). Karta VM ma wyłącznie prywatny adres. W podsieci jawnie włączamy domyślne wyjście do Internetu. NSG przy podsieci nie otwiera portów dla Internetu, a Nginx nasłuchuje tylko na `127.0.0.1:8080` w VM. Do testu użyjemy Azure Run Command. [Azure Run Command](https://learn.microsoft.com/azure/virtual-machines/linux/run-command)
 
+### Znajdź dostępny rozmiar VM i region
+
+```powershell
+$freeSizes = @('Standard_B1s', 'Standard_B2ats_v2')
+$sub = $env:ARM_SUBSCRIPTION_ID
+$assignmentsJson = az policy assignment list --subscription $sub --filter 'atScope()' -o json
+if ($LASTEXITCODE -ne 0) { throw 'Nie można odczytać polityk subskrypcji.' }
+$locationPolicies = $assignmentsJson | ConvertFrom-Json | Where-Object {
+    $_.displayName -in 'Allowed locations', 'Allowed locations for resource groups' -and
+    $_.enforcementMode -ne 'DoNotEnforce' -and $_.parameters.listOfAllowedLocations
+}
+
+$regions = if ($locationPolicies) {
+    @($locationPolicies)[0].parameters.listOfAllowedLocations.value
+} else {
+    az account list-locations --subscription $sub --query "[?metadata.regionType=='Physical'].name" -o tsv
+    if ($LASTEXITCODE -ne 0) { throw 'Nie można odczytać listy regionów.' }
+}
+$regions = @($regions | Where-Object {
+    $region = $_
+    -not ($locationPolicies | Where-Object { $region -notin $_.parameters.listOfAllowedLocations.value })
+} | Sort-Object -Property @{ Expression = { $_ -ne 'denmarkeast' } }, @{ Expression = { $_ } } -Unique)
+
+$sizeFilter = ($freeSizes | ForEach-Object { "name=='$_'" }) -join ' || '
+$query = "{nextLink:nextLink,skus:value[?resourceType=='virtualMachines' && ($sizeFilter)].{name:name,family:family,restrictions:restrictions}}"
+$candidates = @()
+$labChoice = $null
+foreach ($region in $regions) {
+    Write-Host "Sprawdzam $region..."
+    $usageJson = az vm list-usage -l $region --subscription $sub -o json
+    if ($LASTEXITCODE -ne 0) { throw "Nie można odczytać limitów w $region." }
+    $usage = $usageJson | ConvertFrom-Json
+    $regional = $usage | Where-Object { $_.name.value -eq 'cores' }
+    if (-not $regional -or $regional.limit -le $regional.currentValue) { continue }
+
+    $filter = [uri]::EscapeDataString("location eq '$region'")
+    $url = 'https://management.azure.com/subscriptions/{0}/providers/Microsoft.Compute/skus?api-version=2021-07-01&$filter={1}' -f $sub, $filter
+    $skus = do {
+        $pageJson = az rest --method get --url $url --subscription $sub --query $query -o json
+        if ($LASTEXITCODE -ne 0) { throw "Nie można odczytać rozmiarów VM w $region." }
+        $page = $pageJson | ConvertFrom-Json
+        $page.skus
+        $url = $page.nextLink
+    } while ($url)
+
+    $candidates = @(foreach ($size in $freeSizes) {
+        $sku = $skus | Where-Object { $_.name -eq $size } | Select-Object -First 1
+        if (-not $sku) { continue }
+        $blocked = $sku.restrictions | Where-Object {
+            $_.type -eq 'Location' -and ($region -in $_.restrictionInfo.locations -or $region -in $_.values)
+        }
+        if ($blocked) { continue }
+        $family = $usage | Where-Object { $_.name.value -eq $sku.family }
+        $needed = if ($size -eq 'Standard_B1s') { 1 } else { 2 }
+        if ($family -and ($regional.limit - $regional.currentValue) -ge $needed -and
+            ($family.limit - $family.currentValue) -ge $needed) {
+            [pscustomobject]@{ Region = $region; Size = $size; Family = $sku.family }
+        }
+    })
+    if ($candidates.Count -gt 0) { break }
+}
+
+if ($candidates.Count -eq 0) { throw 'Brak zgodnej pary region–rozmiar. Zgłoś wynik prowadzącemu.' }
+$candidates | Format-Table Region, Size, Family
+$labChoice = $candidates[0]
+$labChoice | Format-Table Region, Size
+```
+
+Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Oba warianty wdrożenia używają rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU. Pojemność Azure jest weryfikowana przy wdrożeniu.
+
 ## 2. Demonstracja – kolejność w Azure CLI
 
 Prowadzący uruchamia skrypt w osobnej grupie z końcówką `-cli`. Chętni mogą uruchomić go we własnej grupie, jeśli subskrypcja i czas pozwalają na utworzenie dodatkowej VM.
 
 ```powershell
-./deploy-cli.ps1 -ResourceGroupName 'rg-lab6-123456-cli' -Location 'polandcentral' `
-    -PublicKeyPath (Join-Path $HOME '.ssh/lab6_rsa.pub')
+./deploy-cli.ps1 -ResourceGroupName 'rg-lab6-123456-cli' -Location $labChoice.Region `
+    -PublicKeyPath (Join-Path $HOME '.ssh/lab6_rsa.pub') -VmSize $labChoice.Size
 ```
 
 | Etap | Czego potrzebuje |
@@ -93,7 +163,8 @@ Wpisz własny numer albumu i ustawienia ustalone na zajęciach. Grupa z końców
 
 ```powershell
 $env:TF_VAR_resource_group_name = 'rg-lab6-123456-tf'
-$env:TF_VAR_location = 'polandcentral'
+$env:TF_VAR_location = $labChoice.Region
+$env:TF_VAR_vm_size = $labChoice.Size
 $env:TF_VAR_ssh_public_key_path = Join-Path $HOME '.ssh/lab6_rsa.pub'
 az group exists --name $env:TF_VAR_resource_group_name --subscription $env:ARM_SUBSCRIPTION_ID
 
@@ -151,4 +222,4 @@ W katalogu `lab6/` uruchom `terraform destroy`. Zanim potwierdzisz, sprawdź naz
 
 Na Lab 7 te same pojęcia przełożymy na pracę z klastrem: obraz Nginx trafi do `Deployment`, a `Service` skieruje ruch do Podów. W Lab 6 uruchomienie skryptu jest jednorazową operacją wdrożenia. Kubernetes pokazuje, jak kontroler utrzymuje zadaną liczbę instancji także po wdrożeniu. [Harmonogram](../README.md)
 
-Przed zajęciami przeprowadź pilotaż obu wariantów na uprawnionej subskrypcji w uzgodnionym regionie. Sprawdź dostępność `Standard_B2ats_v2`, domyślne wyjście do Internetu, czas pracy rozszerzenia, uprawnienia do Run Command i plan po zmianie priorytetu reguły w portalu. Jeśli operacje Azure trwają dłużej, rozpocznij wdrożenie demonstracyjne przed zajęciami.
+Przed zajęciami przeprowadź pilotaż obu wariantów na uprawnionej subskrypcji z parą wybraną przez skrypt. Sprawdź domyślne wyjście do Internetu, czas pracy rozszerzenia, uprawnienia do Run Command i plan po zmianie priorytetu reguły w portalu. Jeśli operacje Azure trwają dłużej, rozpocznij wdrożenie demonstracyjne przed zajęciami.
