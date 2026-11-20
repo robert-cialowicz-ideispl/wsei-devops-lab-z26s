@@ -36,6 +36,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('lab5/sample-ci/backend/**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: Restore
         run: dotnet restore ProductApi.Tests/ProductApi.Tests.csproj
 
@@ -65,7 +73,9 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          package-manager-cache: false
+          package-manager-cache: true
+          cache: npm
+          cache-dependency-path: lab5/sample-ci/frontend/package-lock.json
 
       - name: Install
         run: npm ci
