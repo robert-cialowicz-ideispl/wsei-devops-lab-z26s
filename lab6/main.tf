@@ -108,15 +108,3 @@ resource "azurerm_linux_virtual_machine" "lab" {
     version   = "latest"
   }
 }
-
-resource "azurerm_virtual_machine_extension" "bootstrap" {
-  name                 = "lab6-bootstrap"
-  virtual_machine_id   = azurerm_linux_virtual_machine.lab.id
-  publisher            = "Microsoft.Azure.Extensions"
-  type                 = "CustomScript"
-  type_handler_version = "2.1"
-
-  protected_settings = jsonencode({
-    script = filebase64("${path.module}/bootstrap.sh")
-  })
-}

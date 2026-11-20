@@ -1,14 +1,14 @@
-# Laboratorium 6 – Azure VM, zależności i Terraform
+# Laboratorium 6 – Azure VM, zależności, Terraform i Bicep
 
-Na Lab 3 uruchamialiście Nginx na przygotowanej maszynie. Teraz zbudujecie środowisko dla tego kontenera od sieci Azure po gotową odpowiedź HTTP.
+W tym labie utworzycie w Azure maszynę Ubuntu z prywatnym adresem, sieć z podsiecią i grupę zabezpieczeń (NSG). Porównacie kolejność operacji w skrypcie Azure CLI z zależnościami zapisanymi w Terraformie lub Bicepie.
 
 ## 1. Otwórz Azure Cloud Shell i sprawdź subskrypcję
 
-Zaloguj się do [Azure Portal](https://portal.azure.com/), otwórz **Cloud Shell** ikoną `>_` i wybierz **PowerShell**. Jeśli widzisz Bash, użyj opcji **Switch to PowerShell** na pasku Cloud Shell. Azure CLI i Terraform są już dostępne, a Cloud Shell korzysta z logowania do portalu. [Narzędzia i logowanie Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/features)
+Zaloguj się do [Azure Portal](https://portal.azure.com/), otwórz **Cloud Shell** ikoną `>_` i wybierz **PowerShell**. Jeśli widzisz Bash, użyj opcji **Switch to PowerShell** na pasku Cloud Shell. Azure CLI, Terraform i Bicep są już dostępne, a Cloud Shell korzysta z logowania do portalu. [Narzędzia i logowanie Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/features)
 
 Jeśli Cloud Shell zapyta o magazyn, użyj istniejącego magazynu wskazanego przez prowadzącego lub wybierz sesję bez konta Storage. W sesji bez magazynu pliki znikają po jej zakończeniu. W tym trybie po każdym `terraform apply` pobierz przez **Manage files → Download** pliki `terraform.tfstate`, `main.tf` i `~/.ssh/lab6_rsa.pub`. Trzymaj je poza repozytorium. Po przerwaniu sesji sklonuj ponownie repozytorium, odtwórz pliki w ich katalogach, ustaw te same zmienne i wykonaj `terraform init` przed sprzątaniem. [Sesja bez magazynu](https://learn.microsoft.com/azure/cloud-shell/get-started/ephemeral) · [Pobieranie plików z Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/use-the-shell-window#manage-files-menu)
 
-Sprawdź, czy aktywna subskrypcja w Cloud Shell jest tą wskazaną przez prowadzącego. Potrzebujesz uprawnień do zarządzania zasobami Compute i Network oraz do wykonania Run Command w swojej VM.
+Sprawdź, czy aktywna subskrypcja w Cloud Shell jest tą wskazaną przez prowadzącego. Potrzebujesz uprawnień do tworzenia grup zasobów i zarządzania zasobami Compute i Network. Ścieżka Bicep wymaga także uprawnień do wdrożeń w grupie zasobów.
 
 ```powershell
 $env:ARM_SUBSCRIPTION_ID = az account show --query id --output tsv
@@ -50,7 +50,7 @@ git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git
 Set-Location 'wsei-devops-lab-z26s/lab6'
 ```
 
-Przekaż Azure tylko klucz publiczny (`.pub`). Karta VM ma wyłącznie prywatny adres. W podsieci jawnie włączamy domyślne wyjście do Internetu. NSG przy podsieci nie otwiera portów dla Internetu, a Nginx nasłuchuje tylko na `127.0.0.1:8080` w VM. Do testu użyjemy Azure Run Command. [Azure Run Command](https://learn.microsoft.com/azure/virtual-machines/linux/run-command)
+Przekaż Azure tylko klucz publiczny (`.pub`). Karta VM ma wyłącznie prywatny adres. W podsieci jawnie włączamy domyślne wyjście do Internetu. NSG przy podsieci nie otwiera portów dla Internetu.
 
 ### Znajdź dostępny rozmiar VM i region
 
@@ -120,7 +120,7 @@ $labChoice = $candidates[0]
 $labChoice | Format-Table Region, Size
 ```
 
-Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Oba warianty wdrożenia używają rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU. Pojemność Azure jest weryfikowana przy wdrożeniu.
+Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Każdy wariant wdrożenia używa rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU. Pojemność Azure jest weryfikowana przy wdrożeniu.
 
 ## 2. Demonstracja – kolejność w Azure CLI
 
@@ -136,16 +136,19 @@ Prowadzący uruchamia skrypt w osobnej grupie z końcówką `-cli`. Chętni mog�
 | Utworzenie podsieci z NSG | Sieć i grupa zabezpieczeń muszą już istnieć. |
 | Utworzenie karty sieciowej VM | Potrzebuje ID podsieci z przypisanym NSG. |
 | Utworzenie VM | Potrzebuje ID karty sieciowej. |
-| Instalacja Dockera i uruchomienie Nginx | Rozszerzenie instaluje się na istniejącej VM. |
-| Niezależny test HTTP przez Run Command | Rozszerzenie musi zdążyć uruchomić kontener. |
+| Sprawdzenie stanu i adresów VM | Maszyna musi zakończyć wdrażanie. |
 
-Wyszukaj w skrypcie dwa użycia `--no-wait`. Te wywołania przesyłają żądanie i oddają sterowanie w trakcie operacji Azure. Następne `az vm wait --created` i `az vm extension wait --created` sprawdzają stan do `Succeeded`, a po 900 sekundach kończą się błędem. PowerShell zatrzyma skrypt, gdy `az` zwróci błąd. Przy zwykłych wywołaniach CLI bez `--no-wait` polecenia wdrożeniowe same czekają na zakończenie swojej operacji. [Skrypt CLI](deploy-cli.ps1) · [Oczekiwanie na rozszerzenie](https://learn.microsoft.com/cli/azure/vm/extension#az-vm-extension-wait)
+Wyszukaj w skrypcie dwa użycia `--no-wait`. Te wywołania przesyłają żądanie i oddają sterowanie w trakcie operacji Azure. Następne `az network nic wait --created` i `az vm wait --created` czekają na stan `Succeeded`, maksymalnie po 900 sekund. PowerShell zatrzyma skrypt, gdy `az` zwróci błąd. Przy zwykłych wywołaniach CLI bez `--no-wait` polecenia wdrożeniowe same czekają na zakończenie swojej operacji. [Skrypt CLI](deploy-cli.ps1) · [Oczekiwanie na kartę sieciową](https://learn.microsoft.com/cli/azure/network/nic#az-network-nic-wait)
 
 **Pytanie do grupy.** Które dwie operacje można zlecić równolegle? Tworzenie sieci i NSG może rozpocząć się równolegle po utworzeniu grupy zasobów.
 
-## 3. Wdrożenie – zależności w Terraformie
+## 3. Wdrożenie deklaratywne
 
-Otwórz `main.tf`. Znajdź odwołanie prowadzące z rozszerzenia do VM, z VM do karty oraz z karty do podsieci zabezpieczonej przez NSG. Ostatnie odwołanie wskazuje wynik **powiązania** podsieci z NSG, żeby Terraform wykonał to powiązanie przed utworzeniem karty. W obu wariantach rozszerzenie uruchamia `bootstrap.sh` wewnątrz Ubuntu. [Konfiguracja Terraform](main.tf) · [Skrypt inicjalizacji VM](bootstrap.sh)
+Wykonaj ścieżkę **3a → 4a** w Terraformie lub **3b → 4b** w Bicepie, zgodnie z ustaleniami z prowadzącym. Jeśli chcesz przejść obie, po pierwszej usuń jej zasoby zgodnie z krokiem 5. Wystarczy jedna działająca VM naraz.
+
+### 3a. Terraform
+
+Otwórz `main.tf`. Znajdź odwołanie prowadzące z VM do karty oraz z karty do podsieci zabezpieczonej przez NSG. Ostatnie odwołanie wskazuje wynik **powiązania** podsieci z NSG, żeby Terraform wykonał to powiązanie przed utworzeniem karty. [Konfiguracja Terraform](main.tf)
 
 ```mermaid
 flowchart LR
@@ -155,8 +158,6 @@ flowchart LR
     NSG --> Secure
     Secure --> NIC["Karta sieciowa"]
     NIC --> VM["Ubuntu VM"]
-    VM --> Ext["Rozszerzenie: Docker i Nginx"]
-    Ext --> Test["Test HTTP przez Run Command"]
 ```
 
 Wpisz własny numer albumu i ustawienia ustalone na zajęciach. Grupa z końcówką `-tf` musi być nowa. Komunikat `true` z `az group exists` oznacza, że trzeba wybrać inną własną nazwę albo wrócić do stanu, który już zarządza tą grupą.
@@ -173,22 +174,58 @@ terraform validate
 terraform plan
 ```
 
-W planie sprawdź, czy Terraform proponuje utworzenie zasobów w Twojej grupie. Uruchom `terraform apply` i obserwuj kolejność komunikatów `Creating...` oraz `Creation complete`. Terraform może tworzyć niezależne zasoby równolegle. Tam, gdzie zasób potrzebuje ID innego zasobu, graf wymusza kolejność. Provider obsługuje oczekiwanie na operacje Azure, w tym zakończenie działania rozszerzenia. [Zależności zasobów w Terraformie](https://developer.hashicorp.com/terraform/language/resources/behavior)
+W planie sprawdź, czy Terraform proponuje utworzenie zasobów w Twojej grupie. Uruchom `terraform apply` i obserwuj kolejność komunikatów `Creating...` oraz `Creation complete`. Terraform może tworzyć niezależne zasoby równolegle. Tam, gdzie zasób potrzebuje ID innego zasobu, graf wymusza kolejność. Provider czeka na zakończenie operacji Azure. [Zależności zasobów w Terraformie](https://developer.hashicorp.com/terraform/language/resources/behavior)
 
-Po zakończeniu `apply` uruchom niezależny test HTTP. W wyniku znajdź tekst `Lab 6: Nginx na Azure VM` i sprawdź, czy część `stderr` nie zawiera błędów. W ten sposób potwierdzisz, że aplikacja faktycznie odpowiada.
+Po zakończeniu `apply` sprawdź, czy VM ma stan `Succeeded`, rozmiar zgodny z `$labChoice`, adres prywatny z podsieci `10.60.1.0/24` i puste pole `PublicIP`.
 
 ```powershell
-az vm run-command invoke --resource-group $env:TF_VAR_resource_group_name `
-    --name lab6-vm --command-id RunShellScript `
-    --scripts 'curl -fsS http://127.0.0.1:8080/' `
-    --query 'value[].message' --output tsv --subscription $env:ARM_SUBSCRIPTION_ID
+az vm show --resource-group $env:TF_VAR_resource_group_name --name lab6-vm --show-details `
+    --query '{State:provisioningState, Size:hardwareProfile.vmSize, PrivateIP:privateIps, PublicIP:publicIps}' `
+    --output json --subscription $env:ARM_SUBSCRIPTION_ID
+```
+
+### 3b. Bicep
+
+Otwórz `main.bicep`. Znajdź odwołania do NSG w definicji podsieci, do podsieci w karcie sieciowej i do karty w VM. Azure Resource Manager wyznacza zależności z tych odwołań i uruchamia równolegle operacje, które od siebie nie zależą. [Konfiguracja Bicep](main.bicep) · [Zależności zasobów w Bicepie](https://learn.microsoft.com/azure/azure-resource-manager/bicep/resource-dependencies)
+
+Wpisz własny numer albumu. Utwórz osobną grupę `-bicep` w regionie z `$labChoice`. Szablon bierze region z tej grupy. Zachowaj `$bicepArgs` w bieżącej sesji, bo użyjesz tej samej tablicy argumentów w zadaniu 4b.
+
+```powershell
+$bicepGroup = 'rg-lab6-123456-bicep'
+$sub = $env:ARM_SUBSCRIPTION_ID
+$sshPublicKey = (Get-Content -Raw (Join-Path $HOME '.ssh/lab6_rsa.pub')).Trim()
+$groupExists = az group exists --name $bicepGroup --subscription $sub -o tsv
+if ($LASTEXITCODE -ne 0) { throw 'Nie można sprawdzić grupy zasobów.' }
+if ($groupExists -eq 'true') { throw 'Grupa już istnieje. Wybierz nową grupę dla pierwszego wdrożenia.' }
+az group create --name $bicepGroup --location $labChoice.Region --subscription $sub --output none
+if ($LASTEXITCODE -ne 0) { throw 'Nie można utworzyć grupy zasobów.' }
+
+$bicepArgs = @(
+    '--resource-group', $bicepGroup
+    '--subscription', $sub
+    '--template-file', './main.bicep'
+    '--parameters', "vmSize=$($labChoice.Size)", "sshPublicKey=$sshPublicKey"
+)
+az deployment group what-if @bicepArgs
+```
+
+Sprawdź, czy `what-if` zapowiada utworzenie sieci, NSG, karty i VM w Twojej grupie. Następnie wdróż szablon. Polecenie czeka na zakończenie wdrożenia przez Azure Resource Manager. [Wdrażanie Bicepa z Azure CLI](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-cli) · [Podgląd zmian `what-if`](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if)
+
+```powershell
+az deployment group create @bicepArgs --mode Incremental --query properties.provisioningState -o tsv
+```
+
+Po otrzymaniu `Succeeded` sprawdź stan VM, jej rozmiar i adresy tak samo jak w kroku 3a.
+
+```powershell
+az vm show --resource-group $bicepGroup --name lab6-vm --show-details `
+    --query '{State:provisioningState, Size:hardwareProfile.vmSize, PrivateIP:privateIps, PublicIP:publicIps}' `
+    --output json --subscription $sub
 ```
 
 ## 4. Dodaj regułę sieciową i wykryj zmianę w portalu
 
-### Dodaj regułę w Terraformie
-
-Dodaj samodzielnie osobny blok zasobu `azurerm_network_security_rule` w `main.tf`. Reguła ma blokować przychodzące próby połączenia SSH z sieci wirtualnej. Wskaż istniejącą grupę zabezpieczeń `azurerm_network_security_group.lab` przez odwołanie w HCL. [Argumenty zasobu Terraform](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule) · [Reguły NSG w Azure](https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview)
+Reguła ma blokować przychodzące próby połączenia SSH z sieci wirtualnej. Użyj tych samych ustawień w wybranej ścieżce. [Reguły NSG w Azure](https://learn.microsoft.com/azure/virtual-network/network-security-groups-overview)
 
 | Ustawienie | Oczekiwana wartość |
 | --- | --- |
@@ -199,27 +236,44 @@ Dodaj samodzielnie osobny blok zasobu `azurerm_network_security_rule` w `main.tf
 | Cel i port docelowy | dowolny adres (`*`), port `22` |
 | Priorytet | `300` |
 
-Uruchom `terraform plan`. Oczekiwany wynik to utworzenie jednej reguły. Jeśli plan zawiera inne operacje, sprawdź ich przyczynę przed zatwierdzeniem. Wykonaj `terraform apply` i potwierdź w Azure Portal, że reguła ma priorytet `300`.
+### 4a. Terraform
 
-### Zmień priorytet w Azure Portal
+Dodaj samodzielnie osobny blok zasobu `azurerm_network_security_rule` w `main.tf`. Wskaż `azurerm_network_security_group.lab` przez odwołanie w HCL. [Argumenty zasobu Terraform](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule)
+
+Uruchom `terraform plan`. Oczekiwany wynik to utworzenie jednej reguły. Jeśli plan zawiera inne operacje, sprawdź ich przyczynę przed zatwierdzeniem. Wykonaj `terraform apply` i potwierdź w Azure Portal, że reguła ma priorytet `300`.
 
 W portalu otwórz własną grupę zasobów z końcówką `-tf`. Wejdź do `lab6-nsg` → **Inbound security rules** → `deny-vnet-ssh`. Zmień priorytet na `310` i zapisz regułę. W `main.tf` zostaw `300`.
 
 Przed wykonaniem `terraform plan` zapisz, jakiej operacji się spodziewasz. Porównaj odpowiedź z wynikiem planu. Oczekiwana zmiana to `~ priority = 310 -> 300`, czyli aktualizacja reguły w miejscu. Taka różnica między rzeczywistym ustawieniem a konfiguracją to *drift*. [Jak działa terraform plan](https://developer.hashicorp.com/terraform/cli/commands/plan)
 
-### Zdecyduj, którą wartość zachować
+Zdecyduj, którą wartość zachować.
 
 - **Przywróć `300`.** Wykonaj `terraform apply` i sprawdź priorytet w Azure Portal.
 - **Zachowaj `310`.** Zmień priorytet w `main.tf` na `310` i sprawdź, czy konfiguracja zgadza się z Azure.
 
-Uzasadnij wybór jednym zdaniem. Pokaż końcowy `terraform plan` bez zmian i ponów test HTTP Nginx z kroku 3.
+Uzasadnij wybór jednym zdaniem. Pokaż końcowy `terraform plan` bez zmian.
+
+### 4b. Bicep
+
+W `main.bicep` dodaj samodzielnie jeden element do tablicy `nsg.properties.securityRules`. Tam, gdzie widzisz `securityRules: []`, wpisz obiekt z `name` i `properties`. Użyj wartości z tabeli i odszukaj nazwy pól w dokumentacji. [Schemat NSG w Bicepie](https://learn.microsoft.com/azure/templates/microsoft.network/2024-01-01/networksecuritygroups)
+
+Wykonaj `az deployment group what-if @bicepArgs` i znajdź zmianę w `securityRules` zasobu `lab6-nsg`. Wdróż ją tym samym poleceniem `create` co w 3b i sprawdź w portalu, czy priorytet wynosi `300`.
+
+W swojej grupie `-bicep` otwórz `lab6-nsg` → **Inbound security rules** → `deny-vnet-ssh`. Zmień priorytet na `310` i zapisz regułę. W szablonie zostaw `300`. Zapisz przewidywany wynik, a potem ponownie uruchom `az deployment group what-if @bicepArgs`. W szczegółach NSG odszukaj zmianę z `310` na `300`. `what-if` porównuje szablon z zasobami w Azure. Może również pokazać różnice wynikające z wartości domyślnych ustawianych przez Azure. [Interpretacja wyniku `what-if`](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if#understand-what-if-results)
+
+Zdecyduj, którą wartość zachować.
+
+- **Przywróć `300`.** Uruchom polecenie `create` z kroku 3b i sprawdź priorytet w portalu.
+- **Zachowaj `310`.** Zmień priorytet w `main.bicep` na `310`.
+
+Uzasadnij wybór jednym zdaniem. W końcowym `what-if` sprawdź, czy zniknęła różnica priorytetu.
 
 ## 5. Zapisz wynik i posprzątaj
 
-W raporcie porównaj dwa punkty oczekiwania z CLI z odpowiadającymi im zależnościami w Terraformie i wskaż parę zasobów, które mogą powstać równolegle. Dołącz własny blok HCL reguły, fragment planu po zmianie w portalu, uzasadnienie decyzji, końcowy plan bez zmian i wynik testu HTTP.
+W raporcie wskaż, na co czekają oba polecenia `wait --created` w Azure CLI. Porównaj, jak NSG jest przypisany do podsieci w `main.tf` i w `main.bicep`. Dołącz wynik sprawdzenia VM, własną definicję reguły, fragment `terraform plan` lub `what-if` po zmianie w portalu, uzasadnienie decyzji i końcowy wynik porównania priorytetu.
 
-W katalogu `lab6/` uruchom `terraform destroy`. Zanim potwierdzisz, sprawdź nazwę swojej grupy `-tf` i zakres planu. Prowadzący usuwa grupę `-cli` z demonstracji przez `az group delete`. Jeśli sam wykonałeś wariant CLI, usuń również swoją grupę `-cli`, po sprawdzeniu jej nazwy i subskrypcji. Stan Terraforma zachowaj do zakończenia sprzątania i trzymaj poza Gitem.
+- **Terraform.** W katalogu `lab6/` uruchom `terraform destroy`. Zanim potwierdzisz, sprawdź nazwę swojej grupy `-tf` i zakres planu. Stan Terraforma zachowaj do zakończenia sprzątania i trzymaj poza Gitem.
+- **Bicep.** Sprawdź nazwę swojej grupy `-bicep` i subskrypcję. Następnie usuń całą grupę poleceniem `az group delete --name $bicepGroup --subscription $sub` i potwierdź po sprawdzeniu nazwy. Usunięcie grupy usuwa też VM i jej dysk.
+- **Azure CLI.** Prowadzący usuwa grupę `-cli` z demonstracji przez `az group delete`. Jeśli sam wykonałeś wariant CLI, usuń również własną grupę `-cli` po sprawdzeniu jej nazwy i subskrypcji.
 
-Na Lab 7 te same pojęcia przełożymy na pracę z klastrem: obraz Nginx trafi do `Deployment`, a `Service` skieruje ruch do Podów. W Lab 6 uruchomienie skryptu jest jednorazową operacją wdrożenia. Kubernetes pokazuje, jak kontroler utrzymuje zadaną liczbę instancji także po wdrożeniu. [Harmonogram](../README.md)
-
-Przed zajęciami przeprowadź pilotaż obu wariantów na uprawnionej subskrypcji z parą wybraną przez skrypt. Sprawdź domyślne wyjście do Internetu, czas pracy rozszerzenia, uprawnienia do Run Command i plan po zmianie priorytetu reguły w portalu. Jeśli operacje Azure trwają dłużej, rozpocznij wdrożenie demonstracyjne przed zajęciami.
+Na Lab 7 wrócimy do deklarowania stanu docelowego w Kubernetesie. `Deployment` określi, jakie Pody mają działać, a `Service` zapewni do nich dostęp w sieci klastra. [Harmonogram](../README.md)

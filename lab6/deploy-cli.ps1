@@ -29,8 +29,6 @@ if (-not (Test-Path -LiteralPath $PublicKeyPath -PathType Leaf)) {
 
 $publicKey = (Get-Item -LiteralPath $PublicKeyPath).FullName
 $vm = 'lab6-vm'
-$extension = 'lab6-bootstrap'
-$bootstrap = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'bootstrap.sh'))
 
 function Invoke-LabAz {
     az @args --subscription $env:ARM_SUBSCRIPTION_ID
@@ -51,9 +49,11 @@ $subnetId = Invoke-LabAz network vnet subnet create --resource-group $ResourceGr
     --vnet-name lab6-vnet --name app --address-prefixes 10.60.1.0/24 `
     --default-outbound-access true --network-security-group lab6-nsg --query id --output tsv
 
-Write-Host '2. Interfejs VM w podsieci z domyślnym wyjściem do Internetu'
+Write-Host '2. Zlecenie utworzenia karty sieciowej i oczekiwanie na stan Succeeded'
 Invoke-LabAz network nic create --resource-group $ResourceGroupName --location $Location `
-    --name lab6-nic --subnet $subnetId --output none
+    --name lab6-nic --subnet $subnetId --no-wait true --output none
+Invoke-LabAz network nic wait --resource-group $ResourceGroupName --name lab6-nic `
+    --created --interval 10 --timeout 900 --output none
 $nicId = Invoke-LabAz network nic show --resource-group $ResourceGroupName --name lab6-nic `
     --query id --output tsv
 
@@ -66,30 +66,6 @@ Invoke-LabAz vm create --resource-group $ResourceGroupName --location $Location 
 Invoke-LabAz vm wait --resource-group $ResourceGroupName --name $vm `
     --created --interval 10 --timeout 900 --output none
 
-Write-Host '4. Zlecenie instalacji Dockera i oczekiwanie na zakończenie rozszerzenia'
-$settingsFile = New-TemporaryFile
-try {
-    @{ script = [Convert]::ToBase64String($bootstrap) } |
-        ConvertTo-Json -Compress |
-        Set-Content -LiteralPath $settingsFile.FullName -Encoding utf8NoBOM
-
-    Invoke-LabAz vm extension set --resource-group $ResourceGroupName --vm-name $vm `
-        --publisher Microsoft.Azure.Extensions --name CustomScript --version 2.1 `
-        --extension-instance-name $extension --protected-settings $settingsFile.FullName `
-        --no-wait --output none
-}
-finally {
-    Remove-Item -LiteralPath $settingsFile.FullName
-}
-
-Invoke-LabAz vm extension wait --resource-group $ResourceGroupName --vm-name $vm --name $extension `
-    --created --interval 10 --timeout 900 --output none
-
-Write-Host '5. Niezależny test HTTP wewnątrz VM'
-$response = Invoke-LabAz vm run-command invoke --resource-group $ResourceGroupName --name $vm `
-    --command-id RunShellScript --scripts 'curl -fsS http://127.0.0.1:8080/' `
-    --query 'value[].message' --output tsv
-$response
-if (($response -join [Environment]::NewLine) -notlike '*Lab 6: Nginx na Azure VM*') {
-    throw 'Nginx nie zwrócił oczekiwanej strony.'
-}
+Write-Host '4. Stan VM i adresy IP'
+Invoke-LabAz vm show --resource-group $ResourceGroupName --name $vm --show-details `
+    --query '{State:provisioningState, Size:hardwareProfile.vmSize, PrivateIP:privateIps, PublicIP:publicIps}' --output json
