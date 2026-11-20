@@ -174,7 +174,13 @@ terraform validate
 terraform plan
 ```
 
-W planie sprawdź, czy Terraform proponuje utworzenie zasobów w Twojej grupie. Uruchom `terraform apply` i obserwuj kolejność komunikatów `Creating...` oraz `Creation complete`. Terraform może tworzyć niezależne zasoby równolegle. Tam, gdzie zasób potrzebuje ID innego zasobu, graf wymusza kolejność. Provider czeka na zakończenie operacji Azure. [Zależności zasobów w Terraformie](https://developer.hashicorp.com/terraform/language/resources/behavior)
+`terraform plan` wyświetla proponowane zmiany. Sprawdź nazwę swojej grupy i listę zasobów, a następnie uruchom wdrożenie.
+
+```powershell
+terraform apply
+```
+
+Sprawdź plan wyświetlony przez `apply` i wpisz `yes`, aby utworzyć zasoby w Azure. Obserwuj kolejność komunikatów `Creating...` oraz `Creation complete`. Terraform może tworzyć niezależne zasoby równolegle. Tam, gdzie zasób potrzebuje ID innego zasobu, graf wymusza kolejność. [Zależności zasobów w Terraformie](https://developer.hashicorp.com/terraform/language/resources/behavior)
 
 Po zakończeniu `apply` sprawdź, czy VM ma stan `Succeeded`, rozmiar zgodny z `$labChoice`, adres prywatny z podsieci `10.60.1.0/24` i puste pole `PublicIP`.
 
@@ -206,6 +212,11 @@ $bicepArgs = @(
     '--template-file', './main.bicep'
     '--parameters', "vmSize=$($labChoice.Size)", "sshPublicKey=$sshPublicKey"
 )
+```
+
+Wyświetl podgląd pierwszego wdrożenia.
+
+```powershell
 az deployment group what-if @bicepArgs
 ```
 
@@ -240,7 +251,19 @@ Reguła ma blokować przychodzące próby połączenia SSH z sieci wirtualnej. U
 
 Dodaj samodzielnie osobny blok zasobu `azurerm_network_security_rule` w `main.tf`. Wskaż `azurerm_network_security_group.lab` przez odwołanie w HCL. [Argumenty zasobu Terraform](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/network_security_rule)
 
-Uruchom `terraform plan`. Oczekiwany wynik to utworzenie jednej reguły. Jeśli plan zawiera inne operacje, sprawdź ich przyczynę przed zatwierdzeniem. Wykonaj `terraform apply` i potwierdź w Azure Portal, że reguła ma priorytet `300`.
+Wyświetl plan dla nowej reguły.
+
+```powershell
+terraform plan
+```
+
+Oczekiwany wynik to utworzenie jednej reguły. Jeśli plan zawiera inne operacje, sprawdź ich przyczynę przed wdrożeniem.
+
+```powershell
+terraform apply
+```
+
+Sprawdź plan wyświetlony przez `apply` i wpisz `yes`. Następnie sprawdź w Azure Portal, czy reguła ma priorytet `300`.
 
 W portalu otwórz własną grupę zasobów z końcówką `-tf`. Wejdź do `lab6-nsg` → **Inbound security rules** → `deny-vnet-ssh`. Zmień priorytet na `310` i zapisz regułę. W `main.tf` zostaw `300`.
 
@@ -257,16 +280,41 @@ Uzasadnij wybór jednym zdaniem. Pokaż końcowy `terraform plan` bez zmian.
 
 W `main.bicep` dodaj samodzielnie jeden element do tablicy `nsg.properties.securityRules`. Tam, gdzie widzisz `securityRules: []`, wpisz obiekt z `name` i `properties`. Użyj wartości z tabeli i odszukaj nazwy pól w dokumentacji. [Schemat NSG w Bicepie](https://learn.microsoft.com/azure/templates/microsoft.network/2024-01-01/networksecuritygroups)
 
-Wykonaj `az deployment group what-if @bicepArgs` i znajdź zmianę w `securityRules` zasobu `lab6-nsg`. Wdróż ją tym samym poleceniem `create` co w 3b i sprawdź w portalu, czy priorytet wynosi `300`.
+Wyświetl podgląd zmian po dodaniu reguły.
 
-W swojej grupie `-bicep` otwórz `lab6-nsg` → **Inbound security rules** → `deny-vnet-ssh`. Zmień priorytet na `310` i zapisz regułę. W szablonie zostaw `300`. Zapisz przewidywany wynik, a potem ponownie uruchom `az deployment group what-if @bicepArgs`. W szczegółach NSG odszukaj zmianę z `310` na `300`. `what-if` porównuje szablon z zasobami w Azure. Może również pokazać różnice wynikające z wartości domyślnych ustawianych przez Azure. [Interpretacja wyniku `what-if`](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if#understand-what-if-results)
+```powershell
+az deployment group what-if @bicepArgs
+```
+
+Odszukaj zmianę w `securityRules` zasobu `lab6-nsg`, a następnie wdróż regułę.
+
+```powershell
+az deployment group create @bicepArgs --mode Incremental --query properties.provisioningState -o tsv
+```
+
+Po otrzymaniu `Succeeded` otwórz w portalu swoją grupę `-bicep` i przejdź do `lab6-nsg` → **Inbound security rules** → `deny-vnet-ssh`. Sprawdź, czy priorytet wynosi `300`. Zmień go na `310` i zapisz regułę. W `main.bicep` zostaw `300`. Zapisz przewidywany wynik, a potem ponownie wyświetl podgląd.
+
+```powershell
+az deployment group what-if @bicepArgs
+```
+
+W szczegółach NSG odszukaj zmianę z `310` na `300`. `what-if` porównuje szablon z zasobami w Azure. Może również pokazać różnice wynikające z wartości domyślnych ustawianych przez Azure. [Interpretacja wyniku `what-if`](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if#understand-what-if-results)
 
 Zdecyduj, którą wartość zachować.
 
-- **Przywróć `300`.** Uruchom polecenie `create` z kroku 3b i sprawdź priorytet w portalu.
+- **Przywróć `300`.** Wdróż szablon ponownie i sprawdź priorytet w portalu.
+
+  ```powershell
+  az deployment group create @bicepArgs --mode Incremental --query properties.provisioningState -o tsv
+  ```
+
 - **Zachowaj `310`.** Zmień priorytet w `main.bicep` na `310`.
 
-Uzasadnij wybór jednym zdaniem. W końcowym `what-if` sprawdź, czy zniknęła różnica priorytetu.
+Uzasadnij wybór jednym zdaniem. W końcowym podglądzie sprawdź, czy zniknęła różnica priorytetu.
+
+```powershell
+az deployment group what-if @bicepArgs
+```
 
 ## 5. Zapisz wynik i posprzątaj
 
