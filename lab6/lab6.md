@@ -4,11 +4,9 @@ W tym labie utworzycie w Azure maszynę Ubuntu z prywatnym adresem, sieć z pods
 
 ## 1. Otwórz Azure Cloud Shell i sprawdź subskrypcję
 
-Zaloguj się do [Azure Portal](https://portal.azure.com/), otwórz **Cloud Shell** ikoną `>_` i wybierz **PowerShell**. Jeśli widzisz Bash, użyj opcji **Switch to PowerShell** na pasku Cloud Shell. Azure CLI, Terraform i Bicep są już dostępne, a Cloud Shell korzysta z logowania do portalu. [Narzędzia i logowanie Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/features)
+Zaloguj się do [Azure Portal](https://portal.azure.com/), otwórz **Cloud Shell** ikoną `>_` i wybierz **PowerShell**. Jeśli widzisz Bash, użyj opcji **Switch to PowerShell** na pasku Cloud Shell. Azure CLI, Terraform i Bicep są już dostępne, a Cloud Shell korzysta z logowania do portalu. [Narzędzia i logowanie Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/features). Możesz także otworzyć okno remote VS Code. 
 
-Jeśli Cloud Shell zapyta o magazyn, użyj istniejącego magazynu wskazanego przez prowadzącego lub wybierz sesję bez konta Storage. W sesji bez magazynu pliki znikają po jej zakończeniu. W tym trybie po każdym `terraform apply` pobierz przez **Manage files → Download** pliki `terraform.tfstate`, `main.tf` i `~/.ssh/lab6_rsa.pub`. Trzymaj je poza repozytorium. Po przerwaniu sesji sklonuj ponownie repozytorium, odtwórz pliki w ich katalogach, ustaw te same zmienne i wykonaj `terraform init` przed sprzątaniem. [Sesja bez magazynu](https://learn.microsoft.com/azure/cloud-shell/get-started/ephemeral) · [Pobieranie plików z Cloud Shell](https://learn.microsoft.com/azure/cloud-shell/use-the-shell-window#manage-files-menu)
-
-Sprawdź, czy aktywna subskrypcja w Cloud Shell jest tą wskazaną przez prowadzącego. Potrzebujesz uprawnień do tworzenia grup zasobów i zarządzania zasobami Compute i Network. Ścieżka Bicep wymaga także uprawnień do wdrożeń w grupie zasobów.
+Jeśli Cloud Shell zapyta o magazyn, wybierz sesję bez konta Storage. 
 
 ```powershell
 $env:ARM_SUBSCRIPTION_ID = az account show --query id --output tsv
@@ -31,7 +29,7 @@ foreach ($provider in 'Microsoft.Compute', 'Microsoft.Network') {
 }
 ```
 
-Utwórz klucz SSH dla labu.
+Utwórz klucz SSH.
 
 ```powershell
 $sshDir = Join-Path $HOME '.ssh'
@@ -49,8 +47,6 @@ Set-Location $HOME
 git clone https://github.com/robert-cialowicz-ideispl/wsei-devops-lab-z26s.git
 Set-Location 'wsei-devops-lab-z26s/lab6'
 ```
-
-Przekaż Azure tylko klucz publiczny (`.pub`). Karta VM ma wyłącznie prywatny adres. W podsieci jawnie włączamy domyślne wyjście do Internetu. NSG przy podsieci nie otwiera portów dla Internetu.
 
 ### Znajdź dostępny rozmiar VM i region
 
@@ -120,11 +116,11 @@ $labChoice = $candidates[0]
 $labChoice | Format-Table Region, Size
 ```
 
-Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Każdy wariant wdrożenia używa rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU. Pojemność Azure jest weryfikowana przy wdrożeniu.
+Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Każdy wariant wdrożenia używa rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU.
 
 ## 2. Demonstracja – kolejność w Azure CLI
 
-Prowadzący uruchamia skrypt w osobnej grupie z końcówką `-cli`. Chętni mogą uruchomić go we własnej grupie, jeśli subskrypcja i czas pozwalają na utworzenie dodatkowej VM.
+Prowadzący uruchamia skrypt w osobnej grupie z końcówką `-cli`.
 
 ```powershell
 ./deploy-cli.ps1 -ResourceGroupName 'rg-lab6-123456-cli' -Location $labChoice.Region `
@@ -140,11 +136,9 @@ Prowadzący uruchamia skrypt w osobnej grupie z końcówką `-cli`. Chętni mog�
 
 Wyszukaj w skrypcie dwa użycia `--no-wait`. Te wywołania przesyłają żądanie i oddają sterowanie w trakcie operacji Azure. Następne `az network nic wait --created` i `az vm wait --created` czekają na stan `Succeeded`, maksymalnie po 900 sekund. PowerShell zatrzyma skrypt, gdy `az` zwróci błąd. Przy zwykłych wywołaniach CLI bez `--no-wait` polecenia wdrożeniowe same czekają na zakończenie swojej operacji. [Skrypt CLI](deploy-cli.ps1) · [Oczekiwanie na kartę sieciową](https://learn.microsoft.com/cli/azure/network/nic#az-network-nic-wait)
 
-**Pytanie do grupy.** Które dwie operacje można zlecić równolegle? Tworzenie sieci i NSG może rozpocząć się równolegle po utworzeniu grupy zasobów.
-
 ## 3. Wdrożenie deklaratywne
 
-Wykonaj ścieżkę **3a → 4a** w Terraformie lub **3b → 4b** w Bicepie, zgodnie z ustaleniami z prowadzącym. Jeśli chcesz przejść obie, po pierwszej usuń jej zasoby zgodnie z krokiem 5. Wystarczy jedna działająca VM naraz.
+Wykonaj ścieżkę **3a → 4a** w Terraformie oraz **3b → 4b** w Bicepie.
 
 ### 3a. Terraform
 
@@ -318,10 +312,8 @@ az deployment group what-if @bicepArgs
 
 ## 5. Zapisz wynik i posprzątaj
 
-W raporcie wskaż, na co czekają oba polecenia `wait --created` w Azure CLI. Porównaj, jak NSG jest przypisany do podsieci w `main.tf` i w `main.bicep`. Dołącz wynik sprawdzenia VM, własną definicję reguły, fragment `terraform plan` lub `what-if` po zmianie w portalu, uzasadnienie decyzji i końcowy wynik porównania priorytetu.
+Wyślij prowadzącemu fragment `terraform plan` lub `what-if` po zmianie w portalu.
 
 - **Terraform.** W katalogu `lab6/` uruchom `terraform destroy`. Zanim potwierdzisz, sprawdź nazwę swojej grupy `-tf` i zakres planu. Stan Terraforma zachowaj do zakończenia sprzątania i trzymaj poza Gitem.
 - **Bicep.** Sprawdź nazwę swojej grupy `-bicep` i subskrypcję. Następnie usuń całą grupę poleceniem `az group delete --name $bicepGroup --subscription $sub` i potwierdź po sprawdzeniu nazwy. Usunięcie grupy usuwa też VM i jej dysk.
 - **Azure CLI.** Prowadzący usuwa grupę `-cli` z demonstracji przez `az group delete`. Jeśli sam wykonałeś wariant CLI, usuń również własną grupę `-cli` po sprawdzeniu jej nazwy i subskrypcji.
-
-Na Lab 7 wrócimy do deklarowania stanu docelowego w Kubernetesie. `Deployment` określi, jakie Pody mają działać, a `Service` zapewni do nich dostęp w sieci klastra. [Harmonogram](../README.md)
