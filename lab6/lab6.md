@@ -68,17 +68,20 @@ $regions = if ($locationPolicies) {
 }
 $regions = @($regions | Where-Object {
     $region = $_
-    -not ($locationPolicies | Where-Object { $region -notin $_.parameters.listOfAllowedLocations.value })
-} | Sort-Object -Property @{ Expression = { $_ -ne 'denmarkeast' } }, @{ Expression = { $_ } } -Unique)
+    $region -notlike 'denmark*' -and
+        -not ($locationPolicies | Where-Object { $region -notin $_.parameters.listOfAllowedLocations.value })
+} | Sort-Object -Unique)
 
 $sizeFilter = ($freeSizes | ForEach-Object { "name=='$_'" }) -join ' || '
 $query = "{nextLink:nextLink,skus:value[?resourceType=='virtualMachines' && ($sizeFilter)].{name:name,family:family,restrictions:restrictions}}"
-$candidates = @()
 $labChoice = $null
-foreach ($region in $regions) {
+$candidates = @(foreach ($region in $regions) {
     Write-Host "Sprawdzam $region..."
     $usageJson = az vm list-usage -l $region --subscription $sub -o json
-    if ($LASTEXITCODE -ne 0) { throw "Nie można odczytać limitów w $region." }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Pominięto $region. Nie udało się odczytać limitów vCPU."
+        continue
+    }
     $usage = $usageJson | ConvertFrom-Json
     $regional = $usage | Where-Object { $_.name.value -eq 'cores' }
     if (-not $regional -or $regional.limit -le $regional.currentValue) { continue }
@@ -87,13 +90,17 @@ foreach ($region in $regions) {
     $url = 'https://management.azure.com/subscriptions/{0}/providers/Microsoft.Compute/skus?api-version=2021-07-01&$filter={1}' -f $sub, $filter
     $skus = do {
         $pageJson = az rest --method get --url $url --subscription $sub --query $query -o json
-        if ($LASTEXITCODE -ne 0) { throw "Nie można odczytać rozmiarów VM w $region." }
+        if ($LASTEXITCODE -ne 0) { break }
         $page = $pageJson | ConvertFrom-Json
         $page.skus
         $url = $page.nextLink
     } while ($url)
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Pominięto $region. Nie udało się odczytać rozmiarów VM."
+        continue
+    }
 
-    $candidates = @(foreach ($size in $freeSizes) {
+    foreach ($size in $freeSizes) {
         $sku = $skus | Where-Object { $_.name -eq $size } | Select-Object -First 1
         if (-not $sku) { continue }
         $blocked = $sku.restrictions | Where-Object {
@@ -106,9 +113,8 @@ foreach ($region in $regions) {
             ($family.limit - $family.currentValue) -ge $needed) {
             [pscustomobject]@{ Region = $region; Size = $size; Family = $sku.family }
         }
-    })
-    if ($candidates.Count -gt 0) { break }
-}
+    }
+})
 
 if ($candidates.Count -eq 0) { throw 'Brak zgodnej pary region–rozmiar. Zgłoś wynik prowadzącemu.' }
 $candidates | Format-Table Region, Size, Family
@@ -116,7 +122,9 @@ $labChoice = $candidates[0]
 $labChoice | Format-Table Region, Size
 ```
 
-Skrypt sprawdza oba rozmiary i kończy na pierwszym regionie, w którym można wybrać co najmniej jeden z nich. Zaczyna od `denmarkeast`, jeśli polityki na to pozwalają. Każdy wariant wdrożenia używa rozmiaru wybranego w `$labChoice`. Jeśli tabela pokazuje dwa rozmiary, możesz wybrać drugi poleceniem `$labChoice = $candidates[1]`. Skan sprawdza dostępność rozmiaru dla subskrypcji i limity vCPU.
+Skrypt pomija regiony w Danii i wypisuje wszystkie znalezione pary region–rozmiar dla dwóch rozmiarów VM używanych w labie. Uwzględnia rozpoznane polityki lokalizacji, dostępność rozmiaru dla subskrypcji i wolne vCPU. Ostrzeżenie o pominięciu regionu oznacza, że jego dostępności nie udało się sprawdzić. Pierwsza para trafia do `$labChoice`. Możesz wybrać inną pozycję z tabeli, np. `$labChoice = $candidates[1]` wybiera drugą.
+
+Komunikat `RequestDisallowedByAzure` z tekstem o *best available regions* oznacza blokadę regionalną subskrypcji. Azure może dopuścić utworzenie grupy zasobów, a następnie odrzucić sieć lub NSG w tym samym regionie. Jeśli tak się stanie, wybierz inną parę z tabeli. [Ograniczenia regionów w Azure for Students](https://learn.microsoft.com/en-us/answers/questions/5917559/azure-for-students-cannot-create-microsoft-foundry)
 
 ## 2. Demonstracja – kolejność w Azure CLI
 
@@ -175,6 +183,8 @@ terraform apply
 ```
 
 Sprawdź plan wyświetlony przez `apply` i wpisz `yes`, aby utworzyć zasoby w Azure. Obserwuj kolejność komunikatów `Creating...` oraz `Creation complete`. Terraform może tworzyć niezależne zasoby równolegle. Tam, gdzie zasób potrzebuje ID innego zasobu, graf wymusza kolejność. [Zależności zasobów w Terraformie](https://developer.hashicorp.com/terraform/language/resources/behavior)
+
+Jeśli `apply` utworzył grupę, po czym zatrzymał się na blokadzie regionu, posprzątaj częściowe wdrożenie przez `terraform destroy` zgodnie z krokiem 5. Następnie wybierz inną parę w `$labChoice`, ponownie ustaw `TF_VAR_location` i `TF_VAR_vm_size` według bloku powyżej i uruchom `terraform plan` przed kolejną próbą wdrożenia.
 
 Po zakończeniu `apply` sprawdź, czy VM ma stan `Succeeded`, rozmiar zgodny z `$labChoice`, adres prywatny z podsieci `10.60.1.0/24` i puste pole `PublicIP`.
 
