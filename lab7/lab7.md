@@ -44,15 +44,6 @@ if ($LabLocation) { "Wybrany region: $LabLocation" }
 
 Przejdź do kroku 2A lub 2B, gdy zobaczysz `Wybrany region`. Obie ścieżki korzystają ze zmiennej `$LabLocation` w bieżącej sesji PowerShell. Skrypt wyświetla postęp, a do zmiennej trafia nazwa regionu.
 
-Bez dodatkowych argumentów skrypt sprawdza fizyczne regiony aktywnej subskrypcji, zaczynając od europejskich. Jeśli chcesz ograniczyć wybór, uruchom poniższy wariant z regionami w swojej kolejności preferencji.
-
-```powershell
-$LabLocation = $null
-$LabLocation = ./select-region.ps1 -ResourceGroupName $LabRg -ClusterName $LabAks -VmSize $LabVmSize `
-    -Regions polandcentral, westeurope, northeurope
-if ($LabLocation) { "Wybrany region: $LabLocation" }
-```
-
 Jeśli grupa `$LabRg` już istnieje, skrypt bierze pod uwagę tylko jej region. Aby sprawdzić inną lokalizację, ustaw `$LabRg` na nazwę nowej grupy.
 
 Skrypt sprawdza dostępność AKS i wybranego SKU oraz liczniki Compute i sieci z uwzględnieniem dodatkowego węzła z kroku 6. Następnie używa [preflight.bicep](preflight.bicep), aby w `what-if` na poziomie subskrypcji zweryfikować grupę i początkową konfigurację klastra z [main.bicep](main.bicep). Ten krok wykonuje odczyty i symulację wdrożenia. Skrypt zwraca pierwszy region, który przejdzie kontrole.
@@ -235,8 +226,6 @@ Sprawdź w kolumnie `NODE`, czy dwa gotowe pody działają na różnych węzłac
 az aks nodepool update --resource-group $LabRg --cluster-name $LabAks --name system `
     --enable-cluster-autoscaler --min-count 2 --max-count 3
 ```
-
-Dodaj trzecią replikę. Poszukaj poda w stanie `Pending` bez przypisanego węzła w kolumnie `NODE`. Zakończ obserwację klawiszami `Ctrl+C`. W `kubectl -n $LabNamespace describe pod NAZWA_PODA` sprawdź zdarzenie `FailedScheduling` i powód związany z regułą rozmieszczania.
 
 ```powershell
 kubectl -n $LabNamespace scale deployment/backend --replicas=3
