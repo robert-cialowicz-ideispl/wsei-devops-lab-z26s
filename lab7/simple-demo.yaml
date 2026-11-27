@@ -1,0 +1,210 @@
+# Backend - prosta API używająca httpbin (publiczny obraz)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: api
+        image: kennethreitz/httpbin
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+# Frontend - nginx z prostą stroną
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Kubernetes Demo</title>
+        <style>
+            body { font-family: Arial; margin: 50px; background: #f0f0f0; }
+            .container { background: white; padding: 30px; border-radius: 10px; max-width: 800px; margin: auto; }
+            h1 { color: #0066cc; }
+            .info { background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 20px 0; }
+            button { background: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+            button:hover { background: #0052a3; }
+            pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Kubernetes Demo - Product Manager</h1>
+
+            <div class="info">
+                <h3>Architecture:</h3>
+                <ul>
+                    <li><strong>Backend:</strong> 3 replicas (httpbin API)</li>
+                    <li><strong>Frontend:</strong> 2 replicas (Nginx)</li>
+                    <li><strong>Gateway:</strong> ClusterIP service, accessed with port-forward</li>
+                </ul>
+            </div>
+
+            <h3>API Test:</h3>
+            <button onclick="testAPI()">Call Backend API</button>
+            <pre id="result">Click the button to test the API...</pre>
+
+            <div class="info">
+                <h3>Kubernetes Features:</h3>
+                <ul>
+                    <li> Manual scaling of the backend Deployment</li>
+                    <li> Load balancing across replicas</li>
+                    <li> Self-healing (automatic pod recreation)</li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            async function testAPI() {
+                const resultDiv = document.getElementById('result');
+                resultDiv.textContent = 'Sending request to backend API...';
+
+                try {
+                    const response = await fetch('/api/headers');
+                    const data = await response.json();
+                    resultDiv.textContent = JSON.stringify(data, null, 2);
+                } catch (error) {
+                    resultDiv.textContent = 'Error: ' + error.message;
+                }
+            }
+        </script>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: frontend-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+---
+# Gateway - Nginx reverse proxy
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+data:
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    http {
+        upstream backend {
+            server backend:80;
+        }
+        upstream frontend {
+            server frontend:80;
+        }
+        server {
+            listen 80;
+
+            location /api/ {
+                proxy_pass http://backend/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            location / {
+                proxy_pass http://frontend/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+      volumes:
+      - name: config
+        configMap:
+          name: gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  selector:
+    app: gateway
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
