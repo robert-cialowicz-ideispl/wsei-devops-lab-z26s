@@ -4,6 +4,8 @@
 
 describe('Product Manager App', () => {
     test('displayProducts should render products correctly', () => {
+        // celowa literowka Laptop -> Lapop w assercji
+
         // Setup
         document.body.innerHTML = '<div id="products"></div>';
 
@@ -27,6 +29,7 @@ describe('Product Manager App', () => {
 
         // Assert
         const container = document.getElementById('products');
+        // celowa literowka Laptop -> Lapop
         expect(container.innerHTML).toContain('Laptop');
         expect(container.innerHTML).toContain('999.99');
         expect(container.innerHTML).toContain('Mouse');
